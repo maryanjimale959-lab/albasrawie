@@ -1,0 +1,41 @@
+/* Feature styles: assignments, projects, grades */
+
+/* Checkbox that sits inside .chips (submission types, publish toggles) */
+.check-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  padding: 0.3rem 0.7rem;
+  cursor: pointer;
+}
+.check-chip input[type="checkbox"] { width: auto; margin: 0; accent-color: var(--g4); }
+.check-chip:hover { border-color: var(--accent); }
+
+/* Rubric disclosure on assignment / project briefs */
+.rubric { border: 1px solid var(--line); border-radius: 8px; padding: 0.6rem 0.8rem; background: var(--surface-2); }
+.rubric summary { cursor: pointer; }
+
+/* Teacher submission review panels */
+.sub-panel { border-left: 4px solid var(--accent); }
+.sub-body { display: grid; gap: 0.4rem; }
+.sub-body summary { cursor: pointer; font-weight: 700; font-size: 0.9rem; }
+
+/* Student milestone checklist */
+.milestones .milestone { display: flex; }
+.milestones .m-check { display: flex; align-items: center; gap: 0.6rem; margin: 0; cursor: pointer; }
+.milestones .m-check input[type="checkbox"] { width: auto; margin: 0; accent-color: var(--g5); }
+
+/* Grade readouts */
+.grade-result { border-top: 1px solid var(--line); padding-top: 0.75rem; display: grid; gap: 0.4rem; }
+.grade-cats { display: grid; gap: 0.4rem; }
+.grade-line { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; font-weight: 700; }
+.grade-line .grow { flex: 1; min-width: 8ch; }
+
+/* Ordered milestone list on the teacher project view */
+.m-list { padding-left: 1.2rem; display: grid; gap: 0.3rem; margin: 0; }
+

@@ -1,0 +1,21 @@
+/* Feature styles: attendance, materials, announcements */
+
+/* Attendance roster: four status buttons per student row */
+.roster-actions { gap: 0.3rem; }
+.roster-actions .btn { min-width: 4.6rem; }
+
+/* Inline correction form on the session detail page */
+.correction { gap: 0.4rem; }
+.correction-fields { display: flex; gap: 0.4rem; align-items: center; }
+.correction-fields select { width: auto; padding: 0.3rem 0.5rem; font-size: 0.85rem; }
+.correction-fields input { min-width: 12rem; padding: 0.3rem 0.5rem; font-size: 0.85rem; }
+.correction .btn { padding: 0.3rem 0.65rem; font-size: 0.85rem; }
+
+/* Materials list rows: file / link / note */
+.material-item { align-items: flex-start; }
+.material-item h3 a { text-decoration: underline; }
+details.note-box { border: 1px solid var(--line); border-radius: 8px; padding: 0.45rem 0.7rem; background: var(--surface); }
+details.note-box summary { cursor: pointer; font-weight: 700; font-size: 0.95rem; }
+details.note-box[open] { padding-bottom: 0.7rem; }
+details.note-box .prose { margin-top: 0.5rem; }
+

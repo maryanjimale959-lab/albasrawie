@@ -1,0 +1,140 @@
+/* ============================================================
+   Albasrawie — motion system v3 (calm, one-time only)
+   No infinite ambient animation. Everything fires once.
+   ============================================================ */
+
+:root {
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+/* ---------- Entrance: fade + rise (one-time) ---------- */
+.reveal {
+  opacity: 0;
+  transform: translateY(var(--ry, 12px));
+  transition:
+    opacity 0.5s var(--ease-out),
+    transform 0.5s var(--ease-out);
+  will-change: opacity, transform;
+}
+.reveal.in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.anim-page > * { animation: fadeUp 0.45s var(--ease-out) both; }
+.anim-page > *:nth-child(1) { animation-delay: 0.02s; }
+.anim-page > *:nth-child(2) { animation-delay: 0.06s; }
+.anim-page > *:nth-child(3) { animation-delay: 0.1s; }
+.anim-page > *:nth-child(4) { animation-delay: 0.14s; }
+.anim-page > *:nth-child(5) { animation-delay: 0.18s; }
+.anim-page > *:nth-child(6) { animation-delay: 0.22s; }
+.anim-page > *:nth-child(7) { animation-delay: 0.26s; }
+.anim-page > *:nth-child(8) { animation-delay: 0.3s; }
+
+/* ---------- Pop (chips, small elements — one-time) ---------- */
+@keyframes popIn {
+  0%   { opacity: 0; transform: scale(0.85); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.pop-in { animation: popIn 0.35s var(--ease-out) both; }
+
+/* ---------- Card hover (transform only, no jump) ---------- */
+.lift {
+  transition:
+    transform 0.2s var(--ease-out),
+    box-shadow 0.2s var(--ease-out),
+    border-color 0.2s var(--ease-out);
+}
+.lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* ---------- Bar chart grow (one-time) ---------- */
+@keyframes growBar {
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
+}
+.bar-fill {
+  transform-origin: bottom;
+  animation: growBar 0.7s var(--ease-out) both;
+}
+
+/* ---------- Toast (one-time) ---------- */
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.toast { animation: toastIn 0.3s var(--ease-out) both; }
+
+/* ---------- Spinner ---------- */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spin { animation: spin 0.8s linear infinite; }
+
+/* ---------- Success check draw (one-time feedback) ---------- */
+@keyframes checkDraw {
+  from { stroke-dashoffset: 48; }
+  to   { stroke-dashoffset: 0; }
+}
+@keyframes circleDraw {
+  from { stroke-dashoffset: 166; }
+  to   { stroke-dashoffset: 0; }
+}
+.check-circle {
+  stroke-dasharray: 166;
+  animation: circleDraw 0.6s var(--ease-out) both;
+}
+.check-mark {
+  stroke-dasharray: 48;
+  animation: checkDraw 0.4s 0.45s var(--ease-out) both;
+}
+
+/* ---------- Subtle hover micro-interactions ---------- */
+.icon-btn, .btn, .tab-item, .nav-item {
+  transition:
+    transform 0.15s var(--ease-out),
+    background 0.2s var(--ease-out),
+    color 0.2s var(--ease-out),
+    box-shadow 0.2s var(--ease-out),
+    border-color 0.2s var(--ease-out);
+}
+.btn:active { transform: scale(0.98); }
+.icon-btn:active { transform: scale(0.94); }
+
+.hm-cell {
+  transition: transform 0.15s var(--ease-out), outline-color 0.15s;
+}
+.hm-cell:hover { transform: scale(1.25); }
+
+.work-item {
+  transition:
+    transform 0.2s var(--ease-out),
+    box-shadow 0.2s var(--ease-out),
+    border-color 0.2s var(--ease-out);
+}
+.work-item:hover { transform: translateX(3px); box-shadow: var(--shadow-sm); }
+
+.feed-item {
+  transition: background 0.2s var(--ease-out), transform 0.2s var(--ease-out);
+}
+.feed-item:hover { transform: translateX(2px); }
+
+html { scroll-behavior: smooth; }
+
+/* ---------- Respect reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .reveal { opacity: 1; transform: none; }
+}

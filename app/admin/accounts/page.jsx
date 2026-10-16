@@ -77,19 +77,19 @@ export default async function AdminAccounts({ searchParams }) {
           href={`/admin/accounts?role=student${status !== "all" ? `&status=${status}` : ""}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
           className={`btn ${role === "student" ? "primary" : "ghost"} sm`}
         >
-          👨‍🎓 Students ({studentCount})
+          Students ({studentCount})
         </Link>
         <Link
           href={`/admin/accounts?role=teacher${status !== "all" ? `&status=${status}` : ""}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
           className={`btn ${role === "teacher" ? "primary" : "ghost"} sm`}
         >
-          👩‍🏫 Teachers ({teacherCount})
+          Teachers ({teacherCount})
         </Link>
         <Link
           href={`/admin/accounts?role=admin${status !== "all" ? `&status=${status}` : ""}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
           className={`btn ${role === "admin" ? "primary" : "ghost"} sm`}
         >
-          🛡️ Administrator ({adminCount}/1)
+          Administrator ({adminCount}/1)
         </Link>
       </div>
 

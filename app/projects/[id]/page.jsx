@@ -102,7 +102,7 @@ function Brief({ p }) {
         <div style={{ marginTop: "1rem", padding: "0.85rem", background: "var(--surface-2)", borderRadius: "var(--radius-sm, 8px)", border: "1px solid var(--line)" }}>
           <h3 className="small" style={{ margin: "0 0 0.4rem" }}>Project Resources & Starter Files</h3>
           <a href={`/api/f/${p.attachment_path}`} className="btn sm" download>
-            📥 Download {p.attachment_name || "Attachment"}
+            Download {p.attachment_name || "Attachment"}
           </a>
         </div>
       )}

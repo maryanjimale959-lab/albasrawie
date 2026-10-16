@@ -48,8 +48,8 @@ const revalidateProject = (projectId, courseId) => {
   revalidatePath("/projects");
   revalidatePath(`/courses/${courseId}/projects`);
 };
-const isActiveTeacher = () => {
-  const u = requireUser("teacher");
+const isActiveTeacher = async () => {
+  const u = await requireUser("teacher");
   if (u.status !== "active") redirect("/dashboard");
   return u;
 };
@@ -67,11 +67,11 @@ function readMilestones(fd) {
 /* ------------------------------ teacher ------------------------------ */
 
 export async function createProject(_prev, fd) {
-  const user = isActiveTeacher();
+  const user = await isActiveTeacher();
   const r = projectSchema.safeParse(obj(fd));
   if (!r.success) return { error: firstError(r) };
   const d = r.data;
-  const course = courseForTeacher(user, d.course_id);
+  const course = await courseForTeacher(user, d.course_id);
   if (!course) return { error: "Course not found. Pick one of the courses you teach." };
   if (course.archived) return { error: "This course is archived. Restore it before publishing new work." };
   const deadline = toDeadline(d.deadline);
@@ -80,56 +80,64 @@ export async function createProject(_prev, fd) {
   const milestones = readMilestones(fd);
   const publish = fd.get("publish") === "1";
 
-  const id = db.transaction(() => {
-    const info = db.prepare(`INSERT INTO projects
-      (course_id, title, description, objectives, instructions, start_date, deadline, max_marks, project_type, rubric, reference_links, published)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
+  const file = fd.get("attachment");
+  let attachment = { path: null, name: null };
+  if (file && typeof file.size === "number" && file.size > 0) {
+    const up = await saveUpload(file, { ownerId: user.id, courseId: course.id, kind: "project" });
+    if (up.error) return { error: up.error };
+    attachment = { path: String(up.id), name: up.name };
+  }
+
+  const id = await db.transaction(async () => {
+    const info = await db.prepare(`INSERT INTO projects
+      (course_id, title, description, objectives, instructions, start_date, deadline, max_marks, project_type, rubric, reference_links, attachment_path, attachment_name, published)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
       .run(course.id, d.title, d.description || null, d.objectives || null, d.instructions || null, startDate, deadline,
-        d.max_marks, d.project_type, d.rubric || null, d.reference_links || null, publish ? 1 : 0);
+        d.max_marks, d.project_type, d.rubric || null, d.reference_links || null, attachment.path, attachment.name, publish ? 1 : 0);
     const newId = Number(info.lastInsertRowid);
-    const stmt = db.prepare("INSERT INTO project_milestones (project_id, title, position) VALUES (?,?,?)");
-    milestones.forEach((title, i) => stmt.run(newId, title, i + 1));
-    audit(user.id, "project.create", `project:${newId}`, { courseId: course.id, milestones: milestones.length, published: publish });
+    const stmt = await db.prepare("INSERT INTO project_milestones (project_id, title, position) VALUES (?,?,?)");
+    for (const [i, title] of milestones.entries()) await stmt.run(newId, title, i + 1);
+    await audit(user.id, "project.create", `project:${newId}`, { courseId: course.id, milestones: milestones.length, published: publish });
     return newId;
   })();
 
-  if (publish) notifyCourse(course.id, "project", `New project: ${d.title}`, `/projects/${id}`, { excludeUser: user.id });
+  if (publish) await notifyCourse(course.id, "project", `New project: ${d.title}`, `/projects/${id}`, { excludeUser: user.id });
   revalidateProject(id, course.id);
   redirect(`/projects/${id}`);
 }
 
 export async function toggleProjectPublish(fd) {
-  const user = isActiveTeacher();
+  const user = await isActiveTeacher();
   const id = Number(fd.get("project_id"));
-  const p = getProject(id);
-  if (!p || !courseForTeacher(user, p.course_id)) return;
+  const p = await getProject(id);
+  if (!p || !(await courseForTeacher(user, p.course_id))) return;
   const next = p.published ? 0 : 1;
-  db.prepare("UPDATE projects SET published = ? WHERE id = ?").run(next, id);
-  audit(user.id, next ? "project.publish" : "project.unpublish", `project:${id}`);
-  if (next) notifyCourse(p.course_id, "project", `New project: ${p.title}`, `/projects/${id}`, { excludeUser: user.id });
+  await db.prepare("UPDATE projects SET published = ? WHERE id = ?").run(next, id);
+  await audit(user.id, next ? "project.publish" : "project.unpublish", `project:${id}`);
+  if (next) await notifyCourse(p.course_id, "project", `New project: ${p.title}`, `/projects/${id}`, { excludeUser: user.id });
   revalidateProject(id, p.course_id);
 }
 
 /* ------------------------------ student ------------------------------ */
 
 export async function toggleMilestone(fd) {
-  const user = requireUser("student");
+  const user = await requireUser("student");
   const projectId = Number(fd.get("project_id"));
   const milestoneId = Number(fd.get("milestone_id"));
-  const p = getProject(projectId);
+  const p = await getProject(projectId);
   if (!p || !p.published) return;
-  if (!courseForStudent(user, p.course_id)) return;
-  const milestone = projectMilestones(projectId).find((m) => m.id === milestoneId);
+  if (!(await courseForStudent(user, p.course_id))) return;
+  const milestone = (await projectMilestones(projectId)).find((m) => m.id === milestoneId);
   if (!milestone) return;
 
-  db.transaction(() => {
-    const existing = db.prepare("SELECT id FROM project_progress WHERE project_id = ? AND student_id = ? AND milestone_id = ?")
+  await db.transaction(async () => {
+    const existing = await db.prepare("SELECT id FROM project_progress WHERE project_id = ? AND student_id = ? AND milestone_id = ?")
       .get(projectId, user.id, milestoneId);
     if (existing) {
-      db.prepare("DELETE FROM project_progress WHERE id = ?").run(existing.id);
+      await db.prepare("DELETE FROM project_progress WHERE id = ?").run(existing.id);
     } else {
-      db.prepare("INSERT INTO project_progress (project_id, student_id, milestone_id) VALUES (?,?,?)").run(projectId, user.id, milestoneId);
-      logActivity(user.id, {
+      await db.prepare("INSERT INTO project_progress (project_id, student_id, milestone_id) VALUES (?,?,?)").run(projectId, user.id, milestoneId);
+      await logActivity(user.id, {
         courseId: p.course_id, type: "project_milestone", relatedId: milestoneId, verification: "verified",
         description: `Milestone "${milestone.title}" on "${p.title}"`,
       });
@@ -139,14 +147,14 @@ export async function toggleMilestone(fd) {
 }
 
 export async function submitProject(_prev, fd) {
-  const user = requireUser("student");
+  const user = await requireUser("student");
   const r = z.object({ project_id: z.coerce.number().int().positive() }).safeParse(obj(fd));
   if (!r.success) return { error: firstError(r) };
-  const p = getProject(r.data.project_id);
+  const p = await getProject(r.data.project_id);
   if (!p || !p.published) return { error: "This project isn't available any more." };
-  if (!courseForStudent(user, p.course_id)) return { error: "You're not enrolled in this course." };
+  if (!(await courseForStudent(user, p.course_id))) return { error: "You're not enrolled in this course." };
 
-  const existing = projectSubmissionFor(p.id, user.id);
+  const existing = await projectSubmissionFor(p.id, user.id);
   if (existing && existing.status !== "revision") {
     return { error: "Your project is with the teacher. You can hand in a new version once a revision is requested." };
   }
@@ -168,22 +176,22 @@ export async function submitProject(_prev, fd) {
   }
 
   const stamp = new Date().toISOString().slice(0, 19).replace("T", " ");
-  db.transaction(() => {
+  await db.transaction(async () => {
     if (existing) {
-      db.prepare(`UPDATE project_submissions
+      await db.prepare(`UPDATE project_submissions
         SET description = ?, demo_url = ?, repo_url = ?, screenshot_path = ?, screenshot_name = ?, status = 'submitted', submitted_at = ?, grade_released = 0 WHERE id = ?`)
         .run(description, demoUrl || null, repoUrl || null, shot.path, shot.name, stamp, existing.id);
     } else {
-      db.prepare(`INSERT INTO project_submissions
+      await db.prepare(`INSERT INTO project_submissions
         (project_id, student_id, description, demo_url, repo_url, screenshot_path, screenshot_name, status, submitted_at)
         VALUES (?,?,?,?,?,?,?,'submitted',?)`)
         .run(p.id, user.id, description, demoUrl || null, repoUrl || null, shot.path, shot.name, stamp);
     }
-    logActivity(user.id, {
+    await logActivity(user.id, {
       courseId: p.course_id, type: "project_submitted", relatedId: p.id, verification: "verified",
       description: `Submitted "${p.title}"`,
     });
-    audit(user.id, "project.submit", `project:${p.id}`);
+    await audit(user.id, "project.submit", `project:${p.id}`);
   })();
 
   revalidateProject(p.id, p.course_id);
@@ -202,7 +210,7 @@ const personalSchema = z.object({
 });
 
 export async function createPersonalProject(_prev, fd) {
-  const user = requireUser("student");
+  const user = await requireUser("student");
   const r = personalSchema.safeParse(obj(fd));
   if (!r.success) return { error: firstError(r) };
   const d = r.data;
@@ -219,17 +227,17 @@ export async function createPersonalProject(_prev, fd) {
     image = { path: String(up.id), name: up.name };
   }
 
-  db.transaction(() => {
-    const info = db.prepare(`INSERT INTO personal_projects
+  await db.transaction(async () => {
+    const info = await db.prepare(`INSERT INTO personal_projects
       (student_id, title, description, technologies, demo_url, repo_url, image_path, image_name, completed_on)
       VALUES (?,?,?,?,?,?,?,?,?)`)
       .run(user.id, d.title, d.description, technologies || null, d.demo_url || null, d.repo_url || null, image.path, image.name, completed);
     const newId = Number(info.lastInsertRowid);
-    logActivity(user.id, {
+    await logActivity(user.id, {
       courseId: null, type: "external_project", relatedId: newId, verification: "self_reported",
       description: `Personal project "${d.title}"`,
     });
-    audit(user.id, "portfolio.create", `personal_project:${newId}`);
+    await audit(user.id, "portfolio.create", `personal_project:${newId}`);
     return newId;
   })();
 
@@ -238,14 +246,14 @@ export async function createPersonalProject(_prev, fd) {
 }
 
 export async function deletePersonalProject(fd) {
-  const user = requireUser("student");
+  const user = await requireUser("student");
   const id = Number(fd.get("personal_project_id"));
-  const row = db.prepare("SELECT * FROM personal_projects WHERE id = ?").get(id);
+  const row = await db.prepare("SELECT * FROM personal_projects WHERE id = ?").get(id);
   if (!row || row.student_id !== user.id) return;
-  db.transaction(() => {
-    db.prepare("DELETE FROM personal_projects WHERE id = ?").run(id);
-    db.prepare("DELETE FROM learning_activities WHERE student_id = ? AND type = 'external_project' AND related_id = ?").run(user.id, id);
-    audit(user.id, "portfolio.delete", `personal_project:${id}`, { title: row.title });
+  await db.transaction(async () => {
+    await db.prepare("DELETE FROM personal_projects WHERE id = ?").run(id);
+    await db.prepare("DELETE FROM learning_activities WHERE student_id = ? AND type = 'external_project' AND related_id = ?").run(user.id, id);
+    await audit(user.id, "portfolio.delete", `personal_project:${id}`, { title: row.title });
   })();
   revalidatePath("/projects");
 }

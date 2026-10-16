@@ -1,11 +1,10 @@
 import crypto from "crypto";
-import Database from "better-sqlite3";
+import { db, closeDb } from "../lib/db.js";
 import { chromium } from "playwright-core";
 
-const db = new Database("data/albasrawie.db");
 const t = crypto.randomBytes(32).toString("base64url");
-db.prepare("INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?,(SELECT id FROM users WHERE email=?),datetime('now','+1 day'))")
-  .run(crypto.createHash("sha256").update(t).digest("hex"), "teacher@demo.albasrawie.app");
+await db.prepare("INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?,(SELECT id FROM users WHERE email=?),?)")
+  .run(crypto.createHash("sha256").update(t).digest("hex"), "teacher@demo.albasrawie.app", new Date(Date.now() + 864e5).toISOString());
 
 const b = await chromium.launch({ executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: true });
 for (const host of ["localhost", "192.168.18.29"]) {
@@ -20,3 +19,4 @@ for (const host of ["localhost", "192.168.18.29"]) {
   await c.close();
 }
 await b.close();
+await closeDb();

@@ -18,9 +18,9 @@ function CategoryLine({ label, cat }) {
   );
 }
 
-function GradeCard({ entry, studentId }) {
+async function GradeCard({ entry, studentId }) {
   const g = entry.grade;
-  const rows = releasedGradeRows(studentId, entry.id);
+  const rows = await releasedGradeRows(studentId, entry.id);
   return (
     <section className="panel" aria-labelledby={`grade-${entry.id}`}>
       <div className="section-title">
@@ -59,8 +59,8 @@ function GradeCard({ entry, studentId }) {
   );
 }
 
-function StudentGrades({ user, courseId }) {
-  const entries = studentCourseGrades(user.id, { courseId });
+async function StudentGrades({ user, courseId }) {
+  const entries = await studentCourseGrades(user.id, { courseId });
   if (!entries.length) {
     return (
       <Empty title="No grades yet" text="Join a course and your released marks will show up here.">
@@ -83,10 +83,10 @@ function StudentGrades({ user, courseId }) {
   );
 }
 
-function TeacherGrades({ user, courseId, course, basePath }) {
+async function TeacherGrades({ user, courseId, course, basePath }) {
   const id = Number(courseId);
   if (!id) {
-    const list = teacherCourses(user.id);
+    const list = await teacherCourses(user.id);
     if (!list.length) {
       return (
         <Empty title="No courses yet" text="Grades appear once you have a course with released marks.">
@@ -111,9 +111,9 @@ function TeacherGrades({ user, courseId, course, basePath }) {
     );
   }
 
-  const summary = courseGradeSummary(id);
-  const weights = ensureCourseSettings(id);
-  const pending = pendingReleaseCount(id);
+  const summary = await courseGradeSummary(id);
+  const weights = await ensureCourseSettings(id);
+  const pending = await pendingReleaseCount(id);
   return (
     <>
       <div className="stat-grid">

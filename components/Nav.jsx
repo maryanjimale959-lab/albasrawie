@@ -28,11 +28,17 @@ export function Icon({ name, size = 18 }) {
 
 export function useActiveNav(links) {
   const pathname = usePathname();
+  /* The deepest matching link is the only one lit up: /admin/accounts should
+     highlight Accounts, not leave Console glowing as well. */
+  const activeHref = links
+    .map(([href]) => href)
+    .filter((href) => pathname === href || (href !== "/dashboard" && pathname.startsWith(href)))
+    .sort((a, b) => b.length - a.length)[0];
   return links.map(([href, label, icon]) => ({
     href,
     label,
     icon,
-    active: pathname === href || (href !== "/dashboard" && pathname.startsWith(href)),
+    active: href === activeHref,
   }));
 }
 

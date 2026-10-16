@@ -5,7 +5,7 @@ import { courseForStudent, courseForTeacher } from "@/lib/guards";
 import {
   STATUS_META, allowedTypes, assignmentCounts, getAssignment, rosterSubmissions, submissionFor, toInputDateTime,
 } from "@/lib/assignments";
-import { dueLabel, fmtDate, fmtDateTime } from "@/lib/format";
+import { dueLabel, fmtDate, fmtDateTime, firstName } from "@/lib/format";
 import { submitAssignment, toggleAssignmentPublish, updateAssignment } from "@/app/actions/assignments";
 import { gradeAssignment } from "@/app/actions/grades";
 import Shell from "@/components/Shell";
@@ -27,19 +27,20 @@ const INTENTS = [
 
 const pillOf = (s) => { const m = STATUS_META[s] || STATUS_META.not_started; return <Pill tone={m.tone}>{m.label}</Pill>; };
 
-export default function AssignmentPage({ params, searchParams }) {
-  const user = requireUser();
+export default async function AssignmentPage({ params, searchParams }) {
+  const user = await requireUser();
   const id = Number(params.id);
-  const a = getAssignment(id);
+  const a = await getAssignment(id);
   if (!a) notFound();
 
   if (user.role === "student") {
-    const course = courseForStudent(user, a.course_id);
+    const course = await courseForStudent(user, a.course_id);
     if (!course || !a.published) notFound();
-    return <Shell user={user}><StudentView user={user} a={a} course={course} sub={submissionFor(a.id, user.id)} /></Shell>;
+    const sub = await submissionFor(a.id, user.id);
+    return <Shell user={user}><StudentView user={user} a={a} course={course} sub={sub} /></Shell>;
   }
 
-  const course = courseForTeacher(user, a.course_id);
+  const course = await courseForTeacher(user, a.course_id);
   if (!course) notFound();
   return <Shell user={user}><TeacherView user={user} a={a} course={course} filter={String(searchParams.filter || "")} /></Shell>;
 }
@@ -120,7 +121,7 @@ function YourSubmission({ sub, a }) {
       ) : sub.feedback && sub.status === "revision" ? (
         <div className="alert info"><strong>Revision requested:</strong> {sub.feedback}</div>
       ) : (
-        <p className="small muted">Your mark will appear here once {a.teacher_name.split(" ")[0]} releases it.</p>
+        <p className="small muted">Your mark will appear here once {firstName(a.teacher_name)} releases it.</p>
       )}
     </section>
   );
@@ -252,9 +253,9 @@ function RosterRow({ a, r }) {
   );
 }
 
-function TeacherView({ user, a, course, filter }) {
-  const counts = assignmentCounts(a.id);
-  const roster = rosterSubmissions(a.id);
+async function TeacherView({ user, a, course, filter }) {
+  const counts = await assignmentCounts(a.id);
+  const roster = await rosterSubmissions(a.id);
   const shown = roster.filter((r) => {
     if (filter === "missing") return !r.submission_id;
     if (filter === "late") return r.submission_status === "late";

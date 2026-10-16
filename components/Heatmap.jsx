@@ -46,8 +46,8 @@ export default function Heatmap({ cells = [], dayLink, weeks = 53 }) {
             {col.map((c) => {
               const lv = c.future ? -1 : (c.cell?.level ?? 0);
               const title = c.cell ? `${c.cell.count} activity item${c.cell.count === 1 ? "" : "s"} on ${c.iso}` : c.iso;
-              const inner = <span className={`hm-cell lv${lv}`} title={title} />;
-              return c.cell && dayLink ? <a key={c.iso} href={dayLink(c.iso)} className="hm-link">{inner}</a> : <span key={c.iso}>{inner}</span>;
+              const inner = <span className={`hm-cell lv${lv}`} />;
+              return !c.future && dayLink ? <a key={c.iso} href={dayLink(c.iso)} className="hm-link" title={title}>{inner}</a> : <span key={c.iso} title={title}>{inner}</span>;
             })}
           </div>
         ))}

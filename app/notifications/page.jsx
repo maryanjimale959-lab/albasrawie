@@ -7,9 +7,9 @@ import Shell from "@/components/Shell";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Notifications · Albasrawie" };
 
-export default function Notifications() {
-  const user = requireUser();
-  const items = db.prepare("SELECT * FROM notifications WHERE user_id = ? ORDER BY id DESC LIMIT 100").all(user.id);
+export default async function Notifications() {
+  const user = await requireUser();
+  const items = await db.prepare("SELECT * FROM notifications WHERE user_id = ? ORDER BY id DESC LIMIT 100").all(user.id);
   const unread = items.filter((n) => !n.read).length;
   return (
     <Shell user={user}>

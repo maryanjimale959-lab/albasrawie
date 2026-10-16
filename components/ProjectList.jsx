@@ -24,8 +24,8 @@ const PROJECT_FILTERS = [
   ["completed", "Completed"],
 ];
 
-function StudentProjects({ user, courseId, status, basePath, course }) {
-  const all = studentProjects(user.id, { courseId });
+async function StudentProjects({ user, courseId, status, basePath, course }) {
+  const all = await studentProjects(user.id, { courseId });
   const counts = all.reduce((n, r) => ({ ...n, [r.status]: (n[r.status] || 0) + 1 }), {});
   const list = status ? all.filter((p) => p.status === status) : all;
   return (
@@ -77,8 +77,8 @@ function StudentProjects({ user, courseId, status, basePath, course }) {
   );
 }
 
-function TeacherProjects({ user, courseId, course }) {
-  const list = teacherProjects(user, { courseId });
+async function TeacherProjects({ user, courseId, course }) {
+  const list = await teacherProjects(user, { courseId });
   const published = list.filter((p) => p.published);
   return (
     <>
@@ -124,8 +124,8 @@ export default function ProjectList({ user, courseId = null, status = "", basePa
 }
 
 /** Self-reported portfolio entries (students only). */
-export function PersonalProjects({ user }) {
-  const list = personalProjectsFor(user.id);
+export async function PersonalProjects({ user }) {
+  const list = await personalProjectsFor(user.id);
   return (
     <section aria-labelledby="personal-h" style={{ display: "grid", gap: "1rem" }}>
       <div className="section-title">

@@ -27,13 +27,20 @@ function SubmitButton({ label = "Sign in" }) {
   );
 }
 
-export default function LoginForm({ action, next = "" }) {
+export default function LoginForm({ action, next = "", as = "", forConsole = false }) {
   const [state, formAction] = useFormState(action, null);
   const [showPassword, setShowPassword] = useState(false);
 
   return (
-    <form action={formAction} className="auth-form">
+    <form action={formAction} className="auth-form" autoComplete="off">
       <input type="hidden" name="next" value={next} />
+      {as ? <input type="hidden" name="as" value={as} /> : null}
+
+      {(as === "teacher" || forConsole) && (
+        <p style={{ margin: "0 0 .5rem", fontSize: ".85rem", color: "var(--muted)" }}>
+          {forConsole ? "This sign-in opens the administrator console." : "This sign-in is for teacher accounts."}
+        </p>
+      )}
 
       {state?.error && (
         <div className="auth-alert error" role="alert">
@@ -44,6 +51,12 @@ export default function LoginForm({ action, next = "" }) {
           </svg>
           <span>{state.error}</span>
         </div>
+      )}
+
+      {state?.error && as === "teacher" && (
+        <p style={{ margin: "-.4rem 0 0", fontSize: ".85rem", color: "var(--muted)" }}>
+          Student account? <Link href="/login" className="auth-inline-link">Use the student sign-in</Link>.
+        </p>
       )}
 
       <div className="auth-field">
@@ -61,8 +74,8 @@ export default function LoginForm({ action, next = "" }) {
             id="email"
             name="email"
             type="email"
-            autoComplete="email"
-            placeholder="name@organization.com"
+            autoComplete="off"
+            data-lpignore="true"
             required
             className="auth-input-element"
           />
@@ -86,8 +99,8 @@ export default function LoginForm({ action, next = "" }) {
             id="password"
             name="password"
             type={showPassword ? "text" : "password"}
-            autoComplete="current-password"
-            placeholder="••••••••••••"
+            autoComplete="new-password"
+            data-lpignore="true"
             required
             className="auth-input-element"
           />
@@ -117,14 +130,16 @@ export default function LoginForm({ action, next = "" }) {
         <SubmitButton label="Sign in" />
       </div>
 
-      <div className="auth-links-row">
-        <p className="auth-footer-text">
-          Don&apos;t have an account?{" "}
-          <Link href="/register" className="auth-inline-link">
-            Create an account
-          </Link>
-        </p>
-      </div>
+      {!forConsole && (
+        <div className="auth-links-row">
+          <p className="auth-footer-text">
+            Don&apos;t have an account?{" "}
+            <Link href={as === "teacher" ? "/register/teacher" : "/register"} className="auth-inline-link">
+              Create a {as === "teacher" ? "teacher" : "student"} account
+            </Link>
+          </p>
+        </div>
+      )}
 
       <div className="auth-recovery-hint">
         <p>

@@ -7,13 +7,13 @@ import GradesView from "@/components/GradesView";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Grades · Albasrawie" };
 
-export default function GradesPage({ searchParams }) {
-  const user = requireUser();
+export default async function GradesPage({ searchParams }) {
+  const user = await requireUser();
   const courseId = searchParams.course ? Number(searchParams.course) : null;
 
   let course = null;
   if (courseId) {
-    course = user.role === "student" ? courseForStudent(user, courseId) : courseForTeacher(user, courseId);
+    course = user.role === "student" ? await courseForStudent(user, courseId) : await courseForTeacher(user, courseId);
     if (!course) notFound();
   }
 

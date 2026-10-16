@@ -16,15 +16,15 @@ export const metadata = { title: "Mark attendance · Albasrawie" };
 
 const TONE = { present: "green", late: "amber", absent: "red", excused: "neutral" };
 
-export default function AttendanceJoinPage({ searchParams }) {
-  const user = requireUser("student");
+export default async function AttendanceJoinPage({ searchParams }) {
+  const user = await requireUser("student");
   const sessionId = /^\d+$/.test(String(searchParams.session || "")) ? Number(searchParams.session) : null;
   const markedId = /^\d+$/.test(String(searchParams.marked || "")) ? Number(searchParams.marked) : null;
   const prefill = normalizeCode(String(searchParams.code || ""));
 
   // Success panel right after marking.
   if (markedId) {
-    const done = db.prepare(`
+    const done = await db.prepare(`
       SELECT r.status, r.method, r.marked_at, s.session_date, s.id AS session_id, c.id AS course_id, c.name AS course_name
       FROM attendance_records r JOIN attendance_sessions s ON s.id = r.session_id JOIN courses c ON c.id = s.course_id
       WHERE r.session_id = ? AND r.student_id = ?`).get(markedId, user.id);
@@ -53,18 +53,20 @@ export default function AttendanceJoinPage({ searchParams }) {
   }
 
   // Session arrived via QR/link or the "Mark present" button.
-  let session = sessionId ? att.getSession(sessionId) : null;
+  let session = sessionId ? await att.getSession(sessionId) : null;
   let note = null;
   if (session) {
-    const enrolled = !!courseForStudent(user, session.course_id);
+    const enrolled = !!(await courseForStudent(user, session.course_id));
     const expired = session.closes_at && att.parseStamp(session.closes_at) <= new Date();
     if (!enrolled) { session = null; note = "You're not enrolled in that course."; }
     else if (session.status !== "open" || expired) { note = "This session is closed — ask your teacher to reopen it."; }
     else {
-      const mine = att.getRecord(session.id, user.id);
+      const mine = await att.getRecord(session.id, user.id);
       if (mine) note = `You're already recorded as ${mine.status} for this session.`;
     }
   }
+
+  const open = await att.openSessionsForStudent(user.id);
 
   return (
     <Shell user={user}>
@@ -115,21 +117,18 @@ export default function AttendanceJoinPage({ searchParams }) {
 
         <section className="panel" aria-labelledby="mine-h">
           <h2 id="mine-h">My open sessions</h2>
-          {(() => {
-            const open = att.openSessionsForStudent(user.id);
-            return open.length === 0
-              ? <p className="small muted">Nothing open right now.</p>
-              : (
-                <div className="work-list">
-                  {open.map((s) => (
-                    <Link key={s.id} href={`/attendance/join?session=${s.id}`} className="work-item">
-                      <div className="grow"><h3>{s.course_name}</h3><p className="small muted">Session of {fmtDate(s.session_date)}</p></div>
-                      <Pill tone="blue">Open</Pill>
-                    </Link>
-                  ))}
-                </div>
-              );
-          })()}
+          {open.length === 0
+            ? <p className="small muted">Nothing open right now.</p>
+            : (
+              <div className="work-list">
+                {open.map((s) => (
+                  <Link key={s.id} href={`/attendance/join?session=${s.id}`} className="work-item">
+                    <div className="grow"><h3>{s.course_name}</h3><p className="small muted">Session of {fmtDate(s.session_date)}</p></div>
+                    <Pill tone="blue">Open</Pill>
+                  </Link>
+                ))}
+              </div>
+            )}
         </section>
       </div>
     </Shell>

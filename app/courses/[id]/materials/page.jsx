@@ -13,17 +13,17 @@ import { Pill, Empty } from "@/components/ui";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Materials · Albasrawie" };
 
-export default function MaterialsPage({ params }) {
-  const user = requireUser();
+export default async function MaterialsPage({ params }) {
+  const user = await requireUser();
   const id = Number(params.id);
 
   if (user.role === "student") {
-    const course = courseForStudent(user, id);
+    const course = await courseForStudent(user, id);
     if (!course) notFound();
     return <Shell user={user}><StudentMaterials course={course} /></Shell>;
   }
 
-  const course = courseForTeacher(user, id);
+  const course = await courseForTeacher(user, id);
   if (!course) notFound();
   return <Shell user={user}><TeacherMaterials course={course} /></Shell>;
 }
@@ -85,8 +85,8 @@ function MaterialBody({ m, canManage }) {
   );
 }
 
-function TeacherMaterials({ course }) {
-  const groups = groupByModule(courseMaterials(course.id));
+async function TeacherMaterials({ course }) {
+  const groups = groupByModule(await courseMaterials(course.id));
   return (
     <>
       <Head course={course} sub="Share slides, links and notes with your class." />
@@ -125,8 +125,8 @@ function TeacherMaterials({ course }) {
   );
 }
 
-function StudentMaterials({ course }) {
-  const groups = groupByModule(courseMaterials(course.id, { publishedOnly: true }));
+async function StudentMaterials({ course }) {
+  const groups = groupByModule(await courseMaterials(course.id, { publishedOnly: true }));
   return (
     <>
       <Head course={course} sub="Everything your teacher has shared for this course." />

@@ -8,14 +8,14 @@ import ProjectList, { PersonalProjects } from "@/components/ProjectList";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Projects · Albasrawie" };
 
-export default function ProjectsPage({ searchParams }) {
-  const user = requireUser();
+export default async function ProjectsPage({ searchParams }) {
+  const user = await requireUser();
   const courseId = searchParams.course ? Number(searchParams.course) : null;
   const status = String(searchParams.status || "");
 
   let course = null;
   if (courseId) {
-    course = user.role === "student" ? courseForStudent(user, courseId) : courseForTeacher(user, courseId);
+    course = user.role === "student" ? await courseForStudent(user, courseId) : await courseForTeacher(user, courseId);
     if (!course) notFound();
   }
 

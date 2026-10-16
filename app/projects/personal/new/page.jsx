@@ -7,8 +7,8 @@ import ActionForm from "@/components/ActionForm";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Add personal project · Albasrawie" };
 
-export default function NewPersonalProjectPage() {
-  const user = requireUser("student");
+export default async function NewPersonalProjectPage() {
+  const user = await requireUser("student");
   return (
     <Shell user={user}>
       <div className="page-head">

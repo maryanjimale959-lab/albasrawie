@@ -1,24 +1,24 @@
 // Smoke test: creates real sessions for demo users and checks every route renders.
 // Usage: node scripts/smoke.mjs [base]
 import crypto from "crypto";
-import Database from "better-sqlite3";
+import { db, closeDb } from "../lib/db.js";
 
 const base = process.argv[2] || "http://localhost:3000";
-const db = new Database("data/albasrawie.db", { fileMustExist: true });
-db.pragma("journal_mode = WAL");
 
-function session(email) {
-  const u = db.prepare("SELECT id FROM users WHERE email = ?").get(email);
+async function session(email) {
+  const u = await db.prepare("SELECT id FROM users WHERE email = ?").get(email);
   if (!u) throw new Error(`no user ${email}`);
   const token = crypto.randomBytes(32).toString("base64url");
-  db.prepare("INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?,?,datetime('now','+1 day'))")
-    .run(crypto.createHash("sha256").update(token).digest("hex"), u.id);
+  // sessions.expires_at is VARCHAR(40) and the app compares it with new Date(),
+  // so it keeps getting the same full ISO string lib/auth.js writes.
+  await db.prepare("INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?,?,?)")
+    .run(crypto.createHash("sha256").update(token).digest("hex"), u.id, new Date(Date.now() + 864e5).toISOString());
   return token;
 }
 
-const teacher = session("teacher@demo.albasrawie.app");
-const student = session("student1@demo.albasrawie.app");
-const other = session("student2@demo.albasrawie.app");
+const teacher = await session("teacher@demo.albasrawie.app");
+const student = await session("student1@demo.albasrawie.app");
+const other = await session("student2@demo.albasrawie.app");
 const cookie = (t) => `albasrawie_session=${t}`;
 
 let fails = 0;
@@ -97,5 +97,6 @@ await check("teacher analytics", "/analytics", teacher, "Class activity");
 await check("teacher course view", "/courses/1", teacher, "Share this course");
 // cross-role: student cannot open teacher-only pages
 await check("student on students page", "/students", student, "redirect-dashboard");
+await closeDb();
 console.log(fails === 0 ? "ALL PASS" : `${fails} FAILURES`);
 process.exit(fails === 0 ? 0 : 1);

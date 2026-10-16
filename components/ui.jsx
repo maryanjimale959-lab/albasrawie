@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { CountUp } from "./motion";
 
 /* ---------- Icons for stat cards ---------- */
@@ -23,9 +24,9 @@ export function StatIcon({ name, size = 17 }) {
   );
 }
 
-export function StatCard({ label, value, hint, tone = "", icon, delay = 0 }) {
-  return (
-    <div className="stat-card lift" style={{ animationDelay: `${delay}ms` }}>
+export function StatCard({ label, value, hint, tone = "", icon, delay = 0, href }) {
+  const card = (
+    <div className={`stat-card lift ${href ? "stat-card-link" : ""}`} style={{ animationDelay: `${delay}ms`, cursor: href ? "pointer" : "default" }}>
       {icon && (
         <span className="stat-icon" aria-hidden="true">
           <StatIcon name={icon} />
@@ -38,6 +39,14 @@ export function StatCard({ label, value, hint, tone = "", icon, delay = 0 }) {
       {hint && <div className="stat-hint">{hint}</div>}
     </div>
   );
+  if (href) {
+    return (
+      <Link href={href} style={{ textDecoration: "none", color: "inherit", display: "block" }}>
+        {card}
+      </Link>
+    );
+  }
+  return card;
 }
 
 export function Pill({ tone = "neutral", children }) {
@@ -56,20 +65,13 @@ export function Progress({ value, max = 100, label }) {
   );
 }
 
-function hueFromName(name = "") {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
-  return h % 360;
-}
-
 export function Avatar({ name, size = 36, img, ring = false }) {
   const ini = (name || "?").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
-  const hue = hueFromName(name);
   const style = {
     width: size,
     height: size,
     fontSize: size * 0.38,
-    background: img ? undefined : `linear-gradient(135deg, hsl(${hue} 45% 52%), hsl(${(hue + 40) % 360} 50% 42%))`,
+    background: img ? undefined : "var(--brand)",
   };
   const inner = img ? (
     <img className="avatar" style={style} src={img} alt={name} />

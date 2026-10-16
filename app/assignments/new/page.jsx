@@ -11,9 +11,9 @@ export const metadata = { title: "New assignment · Albasrawie" };
 
 const TYPES = [["text", "Typed answer"], ["link", "Link / URL"], ["file", "File upload"]];
 
-export default function NewAssignmentPage({ searchParams }) {
-  const user = requireUser("teacher");
-  const courses = teacherCourses(user.id).filter((c) => !c.archived);
+export default async function NewAssignmentPage({ searchParams }) {
+  const user = await requireUser("teacher");
+  const courses = (await teacherCourses(user.id)).filter((c) => !c.archived);
   const requested = searchParams.course ? Number(searchParams.course) : null;
   const preselected = courses.some((c) => c.id === requested) ? requested : (courses[0]?.id ?? null);
 

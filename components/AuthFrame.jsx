@@ -2,12 +2,11 @@
 import { Logo } from "./Logo";
 import ThemeToggle from "./ThemeToggle";
 
-export default function AuthFrame({ title, subtitle, children, footer }) {
+export default function AuthFrame({ title, subtitle, children, footer, tagline = "Albasrawie" }) {
   return (
     <div className="auth-wrap">
       <div className="auth-scene" aria-hidden="true">
         <div className="auth-photo" />
-        <div className="auth-grid" />
         <div className="auth-veil" />
         <div className="auth-glow auth-glow-a" />
         <div className="auth-glow auth-glow-b" />
@@ -26,10 +25,11 @@ export default function AuthFrame({ title, subtitle, children, footer }) {
           {subtitle && <p className="auth-subtitle">{subtitle}</p>}
         </div>
         {children}
-        {footer && <p className="auth-foot-note">{footer}</p>}
+        <div className="auth-card-foot">
+          {footer && <p className="auth-foot-note">{footer}</p>}
+          <p className="auth-tagline">{tagline}</p>
+        </div>
       </main>
-
-      <p className="auth-page-foot">Albasrawie — learning progress and classroom management</p>
     </div>
   );
 }

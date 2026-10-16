@@ -23,8 +23,8 @@ const qsp = (base, { courseId, status }) => {
 const toneOf = (s) => (STATUS_META[s] || STATUS_META.not_started).tone;
 const labelOf = (s) => (STATUS_META[s] || STATUS_META.not_started).label;
 
-function StudentAssignments({ user, courseId, status, basePath, course }) {
-  const all = studentAssignments(user.id, { courseId });
+async function StudentAssignments({ user, courseId, status, basePath, course }) {
+  const all = await studentAssignments(user.id, { courseId });
   const counts = statusCounts(all);
   const list = status ? all.filter((a) => a.status === status) : all;
   const todo = (counts.not_started || 0);
@@ -81,8 +81,8 @@ function StudentAssignments({ user, courseId, status, basePath, course }) {
   );
 }
 
-function TeacherAssignments({ user, courseId, basePath, course }) {
-  const list = teacherAssignments(user, { courseId });
+async function TeacherAssignments({ user, courseId, basePath, course }) {
+  const list = await teacherAssignments(user, { courseId });
   return (
     <>
       <div className="stat-grid">

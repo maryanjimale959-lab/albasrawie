@@ -6,8 +6,8 @@ import StudentProfileView from "@/components/StudentProfileView";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "My profile · Albasrawie" };
 
-export default function MyProfile() {
-  const user = requireUser();
-  const student = db.prepare("SELECT * FROM users WHERE id = ?").get(user.id);
+export default async function MyProfile() {
+  const user = await requireUser();
+  const student = await db.prepare("SELECT * FROM users WHERE id = ?").get(user.id);
   return <Shell user={user}><StudentProfileView student={student} viewer={user} /></Shell>;
 }

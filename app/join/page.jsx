@@ -7,8 +7,8 @@ import { Logo } from "@/components/Logo";
 
 export const metadata = { title: "Join a course · Albasrawie" };
 
-export default function JoinPage({ searchParams }) {
-  const user = requireUser();
+export default async function JoinPage({ searchParams }) {
+  const user = await requireUser();
   if (user.role !== "student") redirect("/dashboard");
   return (
     <Shell user={user}>

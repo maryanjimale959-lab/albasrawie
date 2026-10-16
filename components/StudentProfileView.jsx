@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { studentStats, heatmap, streaks, activityFeed } from "@/lib/activity";
-import { fmtDate } from "@/lib/format";
+import { studentStats, heatmap, streaks, activityFeed, dayActivities } from "@/lib/activity";
+import { fmtDate, fmtDateTime, firstName } from "@/lib/format";
 import Heatmap from "./Heatmap";
 import { StatCard, Pill, Avatar } from "./ui";
 import { CountUp, Reveal } from "./motion";
@@ -18,28 +18,33 @@ const TYPE_LABEL = {
  * - a teacher of one of their courses: academic stats + that course's portfolio items
  * - personal projects only when portfolio_public = 1 (or own view)
  */
-export default function StudentProfileView({ student, viewer }) {
+export default async function StudentProfileView({ student, viewer, selectedDay = null }) {
   const isSelf = viewer.id === student.id;
-  const sp = db.prepare("SELECT * FROM student_profiles WHERE user_id = ?").get(student.id);
-  const s = studentStats(student.id);
-  const cells = heatmap(student.id);
-  const feed = activityFeed(student.id, 8);
-  const courses = db.prepare(`
+  const sp = await db.prepare("SELECT * FROM student_profiles WHERE user_id = ?").get(student.id);
+  const s = await studentStats(student.id);
+  const cells = await heatmap(student.id);
+  const feed = await activityFeed(student.id, 8);
+  const courses = await db.prepare(`
     SELECT c.id, c.name FROM enrollments e JOIN courses c ON c.id = e.course_id
     WHERE e.student_id = ? AND e.status = 'active' AND c.archived = 0 ORDER BY c.name`).all(student.id);
-  const viewableCourses = isSelf || viewer.role === "admin"
-    ? courses
-    : courses.filter((c) => db.prepare("SELECT 1 FROM courses WHERE id = ? AND teacher_id = ?").get(c.id, viewer.id));
+  let viewableCourses = courses;
+  if (!(isSelf || viewer.role === "admin")) {
+    const owned = new Set();
+    for (const c of courses) if (await db.prepare("SELECT 1 FROM courses WHERE id = ? AND teacher_id = ?").get(c.id, viewer.id)) owned.add(c.id);
+    viewableCourses = courses.filter((c) => owned.has(c.id));
+  }
 
-  const courseProjects = db.prepare(`
+  const courseProjects = (await db.prepare(`
     SELECT ps.*, p.title, p.course_id, c.name AS course_name, u.full_name AS teacher_name
     FROM project_submissions ps JOIN projects p ON p.id = ps.project_id
     JOIN courses c ON c.id = p.course_id JOIN users u ON u.id = c.teacher_id
-    WHERE ps.student_id = ? AND ps.status = 'completed' ORDER BY ps.submitted_at DESC`).all(student.id)
+    WHERE ps.student_id = ? AND ps.status = 'completed' ORDER BY ps.submitted_at DESC`).all(student.id))
     .filter((r) => isSelf || viewer.role === "admin" || viewableCourses.some((c) => c.id === r.course_id));
   const personalProjects = (isSelf || sp?.portfolio_public === 1)
-    ? db.prepare("SELECT * FROM personal_projects WHERE student_id = ? ORDER BY created_at DESC").all(student.id)
+    ? await db.prepare("SELECT * FROM personal_projects WHERE student_id = ? ORDER BY created_at DESC").all(student.id)
     : [];
+  const studyLogs = (await db.prepare("SELECT COUNT(*) n FROM study_logs WHERE student_id = ?").get(student.id)).n;
+  const dayItems = selectedDay ? await dayActivities(student.id, selectedDay) : [];
 
   return (
     <>
@@ -61,7 +66,7 @@ export default function StudentProfileView({ student, viewer }) {
               </p>
             ) : null}
           </div>
-          {isSelf && <Link href="/settings" className="btn ghost sm" style={{ color: "#fff", borderColor: "rgba(255,255,255,0.45)" }}>Edit profile</Link>}
+          {isSelf && <Link href="/settings" className="btn on-navy sm">Edit profile</Link>}
         </div>
         <div className="profile-stats" style={{ marginTop: "1.4rem" }}>
           <div className="pop-in"><b><CountUp value={s.courses} /></b><span>Courses</span></div>
@@ -72,8 +77,39 @@ export default function StudentProfileView({ student, viewer }) {
       </section>
 
       <section className="panel">
-        <h2>Learning activity</h2>
-        <Heatmap cells={cells} dayLink={isSelf ? (d) => `/activity?day=${d}` : null} />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+          <h2 style={{ margin: 0 }}>Learning activity</h2>
+          <span className="small muted">Click any date box to see what {isSelf ? "you" : firstName(student.full_name)} did that day</span>
+        </div>
+        <Heatmap cells={cells} dayLink={(d) => isSelf ? `/activity?day=${d}` : `/students/${student.id}?day=${d}#activity-day`} />
+
+        {selectedDay && (
+          <div id="activity-day" style={{ marginTop: "1.25rem", padding: "1.1rem", background: "var(--surface-2)", borderRadius: "var(--radius-sm, 10px)", border: "1px solid var(--line)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+              <h3 style={{ margin: 0, fontSize: "0.95rem" }}>Activity on {selectedDay} ({dayItems.length})</h3>
+              <Link href={isSelf ? "/profile" : `/students/${student.id}`} className="btn ghost sm" style={{ padding: "4px 8px", fontSize: "0.78rem" }}>Close</Link>
+            </div>
+            {dayItems.length === 0 ? (
+              <p className="small muted" style={{ margin: 0 }}>No learning activities recorded on {selectedDay}.</p>
+            ) : (
+              <div className="feed" style={{ marginTop: "0.5rem" }}>
+                {dayItems.map((a) => (
+                  <div key={a.id} className="feed-item" style={{ cursor: "default", padding: "0.4rem 0" }}>
+                    <span className={`feed-dot ${a.verification === "self_reported" ? "self" : ""}`} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <strong style={{ fontSize: "0.9rem" }}>{a.description || a.type.replace(/_/g, " ")}</strong>
+                      <p className="small muted" style={{ margin: "2px 0 0" }}>
+                        {a.course_name ? `${a.course_name} · ` : ""}
+                        <span style={{ textTransform: "capitalize" }}>{a.verification.replace(/_/g, " ")}</span>
+                      </p>
+                    </div>
+                    {a.created_at && <span className="small muted">{fmtDateTime(a.created_at)}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       <div className="stat-grid">
@@ -81,7 +117,7 @@ export default function StudentProfileView({ student, viewer }) {
         <StatCard label="Projects completed" value={s.projects.done} tone="green" />
         <StatCard label="Projects in progress" value={s.projects.inProgress} />
         <StatCard label="Attendance" value={s.attendance.percent === null ? "—" : `${s.attendance.percent}%`} hint={s.attendance.total ? `${s.attendance.present} present · ${s.attendance.late} late · ${s.attendance.absent} absent` : ""} />
-        <StatCard label="Logged study sessions" value={db.prepare("SELECT COUNT(*) n FROM study_logs WHERE student_id = ?").get(student.id).n} />
+        <StatCard label="Logged study sessions" value={studyLogs} />
       </div>
 
       <div className="layout-2">

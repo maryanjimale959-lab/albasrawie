@@ -8,8 +8,8 @@ import { fmtDate } from "@/lib/format";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Search · Albasrawie" };
 
-export default function SearchPage({ searchParams }) {
-  const user = requireUser();
+export default async function SearchPage({ searchParams }) {
+  const user = await requireUser();
   const q = (searchParams.q || "").toString().trim();
   if (q.length < 2) {
     return <Shell user={user}><h1>Search</h1><p className="muted">Type at least two characters in the search box above.</p></Shell>;
@@ -18,32 +18,32 @@ export default function SearchPage({ searchParams }) {
   const isTeacher = user.role === "teacher" || user.role === "admin";
 
   const courses = isTeacher
-    ? db.prepare("SELECT id, name FROM courses WHERE teacher_id = ? AND name LIKE ? LIMIT 8").all(user.id, like)
-    : db.prepare(`SELECT c.id, c.name FROM courses c JOIN enrollments e ON e.course_id = c.id AND e.student_id = ? AND e.status = 'active'
+    ? await db.prepare("SELECT id, name FROM courses WHERE teacher_id = ? AND name LIKE ? LIMIT 8").all(user.id, like)
+    : await db.prepare(`SELECT c.id, c.name FROM courses c JOIN enrollments e ON e.course_id = c.id AND e.student_id = ? AND e.status = 'active'
         WHERE c.name LIKE ? LIMIT 8`).all(user.id, like);
   const assignments = isTeacher
-    ? db.prepare(`SELECT a.id, a.title, c.name AS course FROM assignments a JOIN courses c ON c.id = a.course_id
+    ? await db.prepare(`SELECT a.id, a.title, c.name AS course FROM assignments a JOIN courses c ON c.id = a.course_id
         WHERE c.teacher_id = ? AND (a.title LIKE ? OR a.description LIKE ?) LIMIT 8`).all(user.id, like, like)
-    : db.prepare(`SELECT a.id, a.title, c.name AS course FROM assignments a JOIN courses c ON c.id = a.course_id
+    : await db.prepare(`SELECT a.id, a.title, c.name AS course FROM assignments a JOIN courses c ON c.id = a.course_id
         JOIN enrollments e ON e.course_id = c.id AND e.student_id = ? AND e.status = 'active'
         WHERE a.published = 1 AND (a.title LIKE ? OR a.description LIKE ?) LIMIT 8`).all(user.id, like, like);
   const projects = isTeacher
-    ? db.prepare(`SELECT p.id, p.title, c.name AS course FROM projects p JOIN courses c ON c.id = p.course_id
+    ? await db.prepare(`SELECT p.id, p.title, c.name AS course FROM projects p JOIN courses c ON c.id = p.course_id
         WHERE c.teacher_id = ? AND p.title LIKE ? LIMIT 8`).all(user.id, like)
-    : db.prepare(`SELECT p.id, p.title, c.name AS course FROM projects p JOIN courses c ON c.id = p.course_id
+    : await db.prepare(`SELECT p.id, p.title, c.name AS course FROM projects p JOIN courses c ON c.id = p.course_id
         JOIN enrollments e ON e.course_id = c.id AND e.student_id = ? AND e.status = 'active'
         WHERE p.published = 1 AND p.title LIKE ? LIMIT 8`).all(user.id, like);
   const students = isTeacher
-    ? db.prepare(`SELECT DISTINCT u.id, u.full_name, sp.student_id FROM users u
+    ? await db.prepare(`SELECT DISTINCT u.id, u.full_name, sp.student_id FROM users u
         LEFT JOIN student_profiles sp ON sp.user_id = u.id
         JOIN enrollments e ON e.student_id = u.id AND e.status = 'active'
         JOIN courses c ON c.id = e.course_id AND c.teacher_id = ?
         WHERE u.full_name LIKE ? OR sp.student_id LIKE ? LIMIT 10`).all(user.id, like, like)
     : [];
   const materials = isTeacher
-    ? db.prepare(`SELECT m.id, m.title, m.course_id, c.name AS course FROM materials m JOIN courses c ON c.id = m.course_id
+    ? await db.prepare(`SELECT m.id, m.title, m.course_id, c.name AS course FROM materials m JOIN courses c ON c.id = m.course_id
         WHERE c.teacher_id = ? AND m.title LIKE ? LIMIT 8`).all(user.id, like)
-    : db.prepare(`SELECT m.id, m.title, m.course_id, c.name AS course FROM materials m JOIN courses c ON c.id = m.course_id
+    : await db.prepare(`SELECT m.id, m.title, m.course_id, c.name AS course FROM materials m JOIN courses c ON c.id = m.course_id
         JOIN enrollments e ON e.course_id = c.id AND e.student_id = ? AND e.status = 'active'
         WHERE m.published = 1 AND m.title LIKE ? LIMIT 8`).all(user.id, like);
 

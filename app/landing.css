@@ -1,51 +1,233 @@
 /* ============================================================
    Albasrawie — Modern, Interactive & Animated Landing Page
    Featuring Full-Page Cinematic Background & Glassmorphic UI
+
+   Theming: every colour on this page resolves through an --l-* token.
+   The block on `.landing` holds the dark cinematic palette, which is the
+   default state (and the fallback if the theme script has not run). A
+   `:root[data-theme="light"] .landing` block below re-declares the same
+   tokens for the light version. Nothing in this file hardcodes a colour
+   any more, so the two themes stay in lockstep as the page grows.
    ============================================================ */
 
-/* Full-Page Background with Fixed Cinematic Scene */
+/* The scene photo lives on the hero section only (see `.l-hero::before`), so
+   the page itself carries just the vertical colour wash and an opaque base. */
 .landing {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   position: relative;
-  color: #f8fafc;
+  color: var(--l-body);
   background:
-    linear-gradient(180deg, 
-      rgba(4, 15, 33, 0.94) 0%, 
-      rgba(5, 20, 44, 0.92) 22%, 
-      rgba(3, 14, 30, 0.95) 60%, 
-      rgba(2, 7, 16, 0.98) 100%
+    linear-gradient(180deg,
+      var(--l-p1) 0%,
+      var(--l-p2) 22%,
+      var(--l-p3) 60%,
+      var(--l-p4) 100%
     ),
-    url("/brand/scene-2.jpg") center top / cover fixed no-repeat;
+    /* Opaque base under the translucent gradient. Without it, body's
+       `background: var(--bg)` shows through the remaining alpha and tints the
+       whole page. A descendant cannot override an ancestor's paint via custom
+       properties, so the base colour has to live here. */
+    var(--l-page-base);
   font-family: var(--font);
+  /* `overflow-x: hidden` would also compute `overflow-y` to `auto`, turning
+     `.landing` into the scroll container and silently breaking the sticky
+     header (it scrolls away 1:1 with the page). `clip` contains the horizontal
+     overflow without creating a scroll container, so `.landing-nav` sticks to
+     the real viewport again. `hidden` stays as the fallback for browsers that
+     do not understand `clip`. */
   overflow-x: hidden;
+  overflow-x: clip;
+
+  /* ---------- Dark cinematic palette (default) ---------- */
+  /* Text */
+  --l-body: #f8fafc;
+  --l-ink: #ffffff;
+  --l-ink-strong: #f1f5f9;
+  --l-ink-2: #cbd5e1;
+  --l-muted: #94a3b8;
+  --l-faint: #64748b;
+
+  /* Accent */
+  --l-accent: #38bdf8;
+  --l-accent-2: #7fc1fe;
+  --l-primary: #0284c7;
+  --l-primary-hover: #0369a1;
+  --l-accent-wash: rgba(56, 189, 248, 0.08);
+  --l-accent-wash-2: rgba(56, 189, 248, 0.12);
+  --l-accent-wash-3: rgba(56, 189, 248, 0.18);
+  --l-accent-wash-4: rgba(56, 189, 248, 0.1);
+  --l-accent-line: rgba(56, 189, 248, 0.22);
+  --l-accent-line-2: rgba(56, 189, 248, 0.25);
+  --l-accent-line-3: rgba(56, 189, 248, 0.3);
+  --l-primary-glow: rgba(2, 132, 199, 0.5);
+  --l-bar-glow: rgba(2, 132, 199, 0.3);
+  --l-accent-glow: rgba(56, 189, 248, 0.65);
+  --l-bar: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
+  --l-bar-hi: linear-gradient(180deg, #7dd3fc 0%, #38bdf8 100%);
+
+  /* Glass fills */
+  --l-glass-3: rgba(255, 255, 255, 0.03);
+  --l-glass: rgba(255, 255, 255, 0.035);
+  --l-glass-4: rgba(255, 255, 255, 0.04);
+  --l-glass-5: rgba(255, 255, 255, 0.05);
+  --l-glass-hover: rgba(255, 255, 255, 0.06);
+  --l-glass-hover-2: rgba(255, 255, 255, 0.12);
+  --l-tabs-bg: rgba(0, 0, 0, 0.25);
+
+  /* Hairlines */
+  --l-line-soft: rgba(255, 255, 255, 0.06);
+  --l-line-7: rgba(255, 255, 255, 0.07);
+  --l-line: rgba(255, 255, 255, 0.08);
+  --l-line-10: rgba(255, 255, 255, 0.1);
+  --l-line-strong: rgba(255, 255, 255, 0.16);
+  --l-line-hover: rgba(255, 255, 255, 0.3);
+  --l-line-hi: rgba(127, 193, 254, 0.2);
+  --l-line-hi-2: rgba(127, 193, 254, 0.25);
+  --l-line-hi-3: rgba(127, 193, 254, 0.3);
+
+  /* Page and panel surfaces */
+  --l-p1: rgba(4, 15, 33, 0.94);
+  --l-p2: rgba(5, 20, 44, 0.92);
+  --l-p3: rgba(3, 14, 30, 0.95);
+  --l-p4: rgba(2, 7, 16, 0.98);
+  --l-page-base: #0a0e14;
+  --l-nav-bg: rgba(4, 15, 33, 0.82);
+  --l-window-bg: rgba(8, 24, 52, 0.82);
+  --l-role-a: rgba(8, 25, 55, 0.85);
+  --l-role-b: rgba(4, 15, 34, 0.9);
+  --l-band-a: rgba(8, 30, 68, 0.9);
+  --l-band-b: rgba(3, 14, 32, 0.95);
+  --l-footer-bg: rgba(2, 6, 14, 0.9);
+  --l-inset-hi: rgba(255, 255, 255, 0.15);
+  --l-inset-hi-2: rgba(255, 255, 255, 0.2);
+
+  /* Elevation */
+  --l-shadow-window: 0 30px 70px -15px rgba(0, 0, 0, 0.7);
+  --l-shadow-window-hover: 0 40px 85px -15px rgba(0, 0, 0, 0.8);
+  --l-shadow-role: 0 15px 35px rgba(0, 0, 0, 0.3);
+  --l-shadow-band: 0 20px 50px rgba(0, 0, 0, 0.4);
+  --l-shadow-tab: 0 1px 3px rgba(0, 0, 0, 0.2);
+
+  /* Status */
+  --l-ok: #34d399;
+  --l-ok-wash: rgba(16, 185, 129, 0.15);
+  --l-ok-line: rgba(16, 185, 129, 0.35);
 }
 
-/* Subtle architectural grid pattern overlay */
-.landing::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
-  background-size: 48px 48px;
-  pointer-events: none;
-  z-index: 1;
+/* ---------- Light version of the same surface ----------
+   The scene photo is kept but washed under a near-white scrim so the
+   composition survives; glass becomes white-on-white with navy hairlines,
+   and the sky accent deepens to #0369a1 so it clears WCAG AA on white. */
+:root[data-theme="light"] .landing {
+  /* Text */
+  --l-body: #14273d;
+  --l-ink: #071c33;
+  --l-ink-strong: #0b2340;
+  --l-ink-2: #35506b;
+  --l-muted: #5b7085;
+  --l-faint: #8496a8;
+
+  /* Accent */
+  --l-accent: #0369a1;
+  --l-accent-2: #0c6ea8;
+  --l-primary: #0369a1;
+  --l-primary-hover: #075985;
+  --l-accent-wash: rgba(3, 105, 161, 0.08);
+  --l-accent-wash-2: rgba(3, 105, 161, 0.1);
+  --l-accent-wash-3: rgba(3, 105, 161, 0.14);
+  --l-accent-wash-4: rgba(3, 105, 161, 0.1);
+  --l-accent-line: rgba(3, 105, 161, 0.22);
+  --l-accent-line-2: rgba(3, 105, 161, 0.24);
+  --l-accent-line-3: rgba(3, 105, 161, 0.3);
+  --l-primary-glow: rgba(3, 105, 161, 0.32);
+  --l-bar-glow: rgba(3, 105, 161, 0.22);
+  --l-accent-glow: rgba(3, 105, 161, 0.4);
+  --l-bar: linear-gradient(180deg, #38bdf8 0%, #0369a1 100%);
+  --l-bar-hi: linear-gradient(180deg, #7dd3fc 0%, #0284c7 100%);
+
+  /* Glass fills */
+  --l-glass-3: rgba(255, 255, 255, 0.62);
+  --l-glass: rgba(255, 255, 255, 0.7);
+  --l-glass-4: rgba(255, 255, 255, 0.76);
+  --l-glass-5: rgba(255, 255, 255, 0.8);
+  --l-glass-hover: rgba(255, 255, 255, 0.9);
+  --l-glass-hover-2: rgba(255, 255, 255, 0.96);
+  --l-tabs-bg: rgba(7, 28, 51, 0.05);
+
+  /* Hairlines */
+  --l-line-soft: rgba(7, 28, 51, 0.07);
+  --l-line-7: rgba(7, 28, 51, 0.08);
+  --l-line: rgba(7, 28, 51, 0.1);
+  --l-line-10: rgba(7, 28, 51, 0.12);
+  --l-line-strong: rgba(7, 28, 51, 0.16);
+  --l-line-hover: rgba(7, 28, 51, 0.26);
+  --l-line-hi: rgba(3, 105, 161, 0.22);
+  --l-line-hi-2: rgba(3, 105, 161, 0.26);
+  --l-line-hi-3: rgba(3, 105, 161, 0.32);
+
+  /* Page and panel surfaces */
+  --l-p1: rgba(249, 251, 255, 0.9);
+  --l-p2: rgba(241, 247, 253, 0.88);
+  --l-p3: rgba(234, 242, 251, 0.93);
+  --l-p4: rgba(227, 238, 250, 0.96);
+  --l-page-base: #f4f7fb;
+  --l-nav-bg: rgba(251, 253, 255, 0.86);
+  --l-window-bg: rgba(255, 255, 255, 0.8);
+  --l-role-a: rgba(255, 255, 255, 0.86);
+  --l-role-b: rgba(243, 248, 254, 0.92);
+  --l-band-a: rgba(255, 255, 255, 0.9);
+  --l-band-b: rgba(238, 246, 255, 0.95);
+  --l-footer-bg: rgba(255, 255, 255, 0.86);
+  --l-inset-hi: rgba(255, 255, 255, 0.9);
+  --l-inset-hi-2: rgba(255, 255, 255, 1);
+
+  /* Elevation */
+  --l-shadow-window: 0 30px 70px -20px rgba(7, 28, 51, 0.22);
+  --l-shadow-window-hover: 0 40px 85px -20px rgba(7, 28, 51, 0.26);
+  --l-shadow-role: 0 15px 35px rgba(7, 28, 51, 0.1);
+  --l-shadow-band: 0 20px 50px rgba(7, 28, 51, 0.12);
+  --l-shadow-tab: 0 1px 3px rgba(7, 28, 51, 0.12);
+
+  /* Status */
+  --l-ok: #059669;
+  --l-ok-wash: rgba(5, 150, 105, 0.1);
+  --l-ok-line: rgba(5, 150, 105, 0.28);
 }
+
+/* ---------- Light-mode refinements ----------
+   Hairlines that are invisible on the dark scene (white at 8% over near-black)
+   turn into hard grey rules on the light one. These two are the only dividers
+   that read as stray lines rather than structure, so they are dropped for the
+   light theme only. Dark mode keeps its original pixels. */
+:root[data-theme="light"] .l-trust {
+  border-top-color: transparent;
+  padding-top: 1.5rem;
+}
+
+:root[data-theme="light"] .landing-nav {
+  border-bottom-color: var(--l-line-soft);
+}
+
+/* The fixed architectural grid overlay that used to sit here has been removed:
+   it read as graph paper rather than texture, in both themes. */
 
 /* ---------- Top Navigation ---------- */
 .landing-nav {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(4, 15, 33, 0.82);
+  background: var(--l-nav-bg);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--l-line);
   transition: background-color 0.2s ease, border-color 0.2s ease;
 }
+
+/* The header now stays on screen, so jumping to #features / #roles / #workflow
+   has to leave room underneath it instead of tucking the heading away. */
+.landing section[id] { scroll-margin-top: 84px; }
 
 .landing-nav-inner {
   max-width: 1200px;
@@ -63,7 +245,7 @@
 }
 
 .landing-menu a {
-  color: #94a3b8;
+  color: var(--l-muted);
   text-decoration: none;
   font-weight: 600;
   font-size: 0.9rem;
@@ -73,8 +255,8 @@
 }
 
 .landing-menu a:hover {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.06);
+  color: var(--l-ink);
+  background: var(--l-glass-hover);
 }
 
 .landing-actions {
@@ -88,7 +270,26 @@
 .l-hero {
   position: relative;
   z-index: 2;
-  padding: 5rem 1.75rem 4.5rem;
+  padding: 5rem 1.75rem 5.5rem;
+  /* Its own stacking context, so the photo layer below (z-index: -1) paints
+     above the page wash but underneath the hero content. */
+  isolation: isolate;
+}
+
+/* The classroom photo, confined to this section. The colour wash sits on top
+   of it exactly as before, and a mask fades the whole layer out before the
+   hero ends, so every section below sits on the plain wash with no image. */
+.l-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, var(--l-p1) 0%, var(--l-p2) 45%, var(--l-p3) 100%),
+    url("/brand/hero-class.jpg") center 42% / cover no-repeat;
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 58%, rgba(0, 0, 0, 0) 100%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 58%, rgba(0, 0, 0, 0) 100%);
 }
 
 .l-hero-inner {
@@ -134,11 +335,11 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #7fc1fe;
+  color: var(--l-accent-2);
   padding: 0.35rem 0.85rem;
   border-radius: 99px;
-  background: rgba(56, 189, 248, 0.08);
-  border: 1px solid rgba(56, 189, 248, 0.22);
+  background: var(--l-accent-wash);
+  border: 1px solid var(--l-accent-line);
   align-self: flex-start;
   margin-bottom: 1.25rem;
 }
@@ -147,8 +348,8 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #38bdf8;
-  box-shadow: 0 0 8px #38bdf8;
+  background: var(--l-accent);
+  box-shadow: 0 0 8px var(--l-accent);
 }
 
 .l-h1 {
@@ -156,14 +357,14 @@
   font-weight: 900;
   line-height: 1.1;
   letter-spacing: -0.035em;
-  color: #ffffff;
+  color: var(--l-ink);
   margin: 0 0 1.25rem 0;
 }
 
 .l-sub {
   font-size: 1.08rem;
   line-height: 1.65;
-  color: #94a3b8;
+  color: var(--l-muted);
   max-width: 50ch;
   margin: 0;
 }
@@ -176,7 +377,7 @@
 }
 
 .btn-primary-lg {
-  background: #0284c7 !important;
+  background: var(--l-primary) !important;
   color: #ffffff !important;
   font-size: 0.98rem !important;
   padding: 0.7rem 1.4rem !important;
@@ -187,15 +388,15 @@
 }
 
 .btn-primary-lg:hover {
-  background: #0369a1 !important;
+  background: var(--l-primary-hover) !important;
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px -4px rgba(2, 132, 199, 0.5);
+  box-shadow: 0 8px 20px -4px var(--l-primary-glow);
 }
 
 .btn-ghost-lg {
-  background: rgba(255, 255, 255, 0.05) !important;
-  color: #f1f5f9 !important;
-  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  background: var(--l-glass-5) !important;
+  color: var(--l-ink-strong) !important;
+  border: 1px solid var(--l-line-strong) !important;
   font-size: 0.98rem !important;
   padding: 0.7rem 1.4rem !important;
   border-radius: 8px !important;
@@ -204,8 +405,8 @@
 }
 
 .btn-ghost-lg:hover {
-  background: rgba(255, 255, 255, 0.12) !important;
-  border-color: rgba(255, 255, 255, 0.3) !important;
+  background: var(--l-glass-hover-2) !important;
+  border-color: var(--l-line-hover) !important;
   transform: translateY(-2px);
 }
 
@@ -215,7 +416,7 @@
   gap: 1rem;
   margin-top: 2.75rem;
   padding-top: 1.75rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--l-line);
 }
 
 .trust-card {
@@ -226,14 +427,14 @@
 .trust-card b {
   font-size: 1.6rem;
   font-weight: 800;
-  color: #f1f5f9;
+  color: var(--l-ink-strong);
   letter-spacing: -0.02em;
 }
 
 .trust-card span {
   font-size: 0.78rem;
   font-weight: 600;
-  color: #94a3b8;
+  color: var(--l-muted);
   margin-top: 0.2rem;
 }
 
@@ -245,23 +446,23 @@
 }
 
 .preview-window {
-  background: rgba(8, 24, 52, 0.82);
-  border: 1px solid rgba(127, 193, 254, 0.2);
+  background: var(--l-window-bg);
+  border: 1px solid var(--l-line-hi);
   border-radius: 18px;
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  box-shadow: 
-    0 30px 70px -15px rgba(0, 0, 0, 0.7),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  box-shadow:
+    var(--l-shadow-window),
+    inset 0 1px 0 var(--l-inset-hi);
   overflow: hidden;
   transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
 }
 
 .preview-window:hover {
   transform: translateY(-4px);
-  box-shadow: 
-    0 40px 85px -15px rgba(0, 0, 0, 0.8),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  box-shadow:
+    var(--l-shadow-window-hover),
+    inset 0 1px 0 var(--l-inset-hi-2);
 }
 
 /* Window Header */
@@ -270,8 +471,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 0.75rem 1.1rem;
-  background: rgba(255, 255, 255, 0.04);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--l-glass-4);
+  border-bottom: 1px solid var(--l-line);
 }
 
 .preview-window-dots {
@@ -294,16 +495,16 @@
 .preview-tabs {
   display: flex;
   gap: 0.3rem;
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--l-tabs-bg);
   padding: 3px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--l-line-soft);
 }
 
 .preview-tab-btn {
   background: transparent;
   border: none;
-  color: #94a3b8;
+  color: var(--l-muted);
   font-family: inherit;
   font-size: 0.75rem;
   font-weight: 700;
@@ -314,9 +515,9 @@
 }
 
 .preview-tab-btn.active {
-  background: rgba(56, 189, 248, 0.18);
-  color: #38bdf8;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  background: var(--l-accent-wash-3);
+  color: var(--l-accent);
+  box-shadow: var(--l-shadow-tab);
 }
 
 .preview-live-indicator {
@@ -327,15 +528,15 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #38bdf8;
+  color: var(--l-accent);
 }
 
 .live-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #38bdf8;
-  box-shadow: 0 0 6px #38bdf8;
+  background: var(--l-accent);
+  box-shadow: 0 0 6px var(--l-accent);
   animation: pulseBeacon 2s infinite ease-in-out;
 }
 
@@ -360,8 +561,8 @@
 }
 
 .preview-metric-card {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--l-glass-4);
+  border: 1px solid var(--l-line);
   border-radius: 12px;
   padding: 0.85rem 1rem;
   display: flex;
@@ -371,14 +572,14 @@
 
 .preview-metric-card:hover {
   transform: translateY(-2px);
-  border-color: rgba(127, 193, 254, 0.3);
-  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--l-line-hi-3);
+  background: var(--l-glass-hover);
 }
 
 .metric-val {
   font-size: 1.6rem;
   font-weight: 900;
-  color: #ffffff;
+  color: var(--l-ink);
   letter-spacing: -0.02em;
   line-height: 1.1;
 }
@@ -386,20 +587,20 @@
 .metric-label {
   font-size: 0.82rem;
   font-weight: 700;
-  color: #cbd5e1;
+  color: var(--l-ink-2);
   margin-top: 0.25rem;
 }
 
 .metric-hint {
   font-size: 0.68rem;
-  color: #94a3b8;
+  color: var(--l-muted);
   margin-top: 0.15rem;
 }
 
 /* Chart Section */
 .preview-chart-wrapper {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--l-glass-3);
+  border: 1px solid var(--l-line-7);
   border-radius: 12px;
   padding: 1rem 1.15rem;
 }
@@ -416,15 +617,15 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #94a3b8;
+  color: var(--l-muted);
 }
 
 .chart-tooltip-badge {
   font-size: 0.75rem;
   font-weight: 700;
-  color: #38bdf8;
-  background: rgba(56, 189, 248, 0.12);
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  color: var(--l-accent);
+  background: var(--l-accent-wash-2);
+  border: 1px solid var(--l-accent-line-2);
   padding: 0.15rem 0.5rem;
   border-radius: 6px;
   animation: fadeIn 0.2s ease;
@@ -432,7 +633,7 @@
 
 .chart-tooltip-hint {
   font-size: 0.72rem;
-  color: #64748b;
+  color: var(--l-faint);
 }
 
 .preview-bars-container {
@@ -462,23 +663,23 @@
 
 .preview-bar-fill {
   width: 100%;
-  background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
+  background: var(--l-bar);
   border-radius: 6px 6px 2px 2px;
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3);
+  box-shadow: 0 2px 8px var(--l-bar-glow);
 }
 
 .preview-bar-fill.highlight {
-  background: linear-gradient(180deg, #7dd3fc 0%, #38bdf8 100%);
+  background: var(--l-bar-hi);
   filter: brightness(1.2);
   transform: scaleY(1.05);
-  box-shadow: 0 0 14px rgba(56, 189, 248, 0.65);
+  box-shadow: 0 0 14px var(--l-accent-glow);
 }
 
 .preview-bar-label {
   font-size: 0.7rem;
   font-weight: 700;
-  color: #94a3b8;
+  color: var(--l-muted);
   margin-top: 0.35rem;
 }
 
@@ -495,23 +696,23 @@
   gap: 0.75rem;
   padding: 0.65rem 0.85rem;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--l-glass);
+  border: 1px solid var(--l-line-soft);
   transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .preview-feed-item:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(127, 193, 254, 0.2);
+  background: var(--l-glass-hover);
+  border-color: var(--l-line-hi);
 }
 
 .feed-status-indicator {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: rgba(16, 185, 129, 0.15);
-  border: 1px solid rgba(16, 185, 129, 0.35);
-  color: #34d399;
+  background: var(--l-ok-wash);
+  border: 1px solid var(--l-ok-line);
+  color: var(--l-ok);
   display: grid;
   place-items: center;
   flex-shrink: 0;
@@ -527,7 +728,7 @@
 .feed-title {
   font-size: 0.82rem;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--l-ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -535,7 +736,7 @@
 
 .feed-desc {
   font-size: 0.73rem;
-  color: #94a3b8;
+  color: var(--l-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -544,7 +745,7 @@
 .feed-timestamp {
   font-size: 0.7rem;
   font-weight: 600;
-  color: #64748b;
+  color: var(--l-faint);
   white-space: nowrap;
 }
 
@@ -569,7 +770,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #38bdf8;
+  color: var(--l-accent);
   margin-bottom: 0.5rem;
 }
 
@@ -577,12 +778,12 @@
   font-size: clamp(1.75rem, 3.2vw, 2.4rem);
   font-weight: 800;
   letter-spacing: -0.025em;
-  color: #ffffff;
+  color: var(--l-ink);
   margin: 0 0 0.75rem 0;
 }
 
 .l-section-head p {
-  color: #94a3b8;
+  color: var(--l-muted);
   font-size: 1.02rem;
   line-height: 1.6;
   margin: 0;
@@ -596,8 +797,8 @@
 }
 
 .l-feature {
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--l-glass);
+  border: 1px solid var(--l-line);
   border-radius: 14px;
   padding: 1.6rem 1.5rem;
   backdrop-filter: blur(14px);
@@ -610,8 +811,8 @@
 
 .l-feature:hover {
   transform: translateY(-4px);
-  border-color: rgba(56, 189, 248, 0.3);
-  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--l-accent-line-3);
+  background: var(--l-glass-hover);
 }
 
 .l-feature .l-ico {
@@ -620,21 +821,21 @@
   border-radius: 10px;
   display: grid;
   place-items: center;
-  background: rgba(56, 189, 248, 0.1);
-  border: 1px solid rgba(56, 189, 248, 0.25);
-  color: #38bdf8;
+  background: var(--l-accent-wash-4);
+  border: 1px solid var(--l-accent-line-2);
+  color: var(--l-accent);
 }
 
 .l-feature h3 {
   font-size: 1.08rem;
   font-weight: 800;
-  color: #ffffff;
+  color: var(--l-ink);
   margin: 0;
   letter-spacing: -0.01em;
 }
 
 .l-feature p {
-  color: #94a3b8;
+  color: var(--l-muted);
   font-size: 0.9rem;
   line-height: 1.55;
   margin: 0;
@@ -650,11 +851,11 @@
 .l-role {
   border-radius: 16px;
   padding: 2.25rem 2rem;
-  color: #ffffff;
-  background: linear-gradient(145deg, rgba(8, 25, 55, 0.85), rgba(4, 15, 34, 0.9));
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--l-ink);
+  background: linear-gradient(145deg, var(--l-role-a), var(--l-role-b));
+  border: 1px solid var(--l-line-10);
   backdrop-filter: blur(16px);
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--l-shadow-role);
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -663,7 +864,7 @@
 
 .l-role:hover {
   transform: translateY(-3px);
-  border-color: rgba(127, 193, 254, 0.3);
+  border-color: var(--l-line-hi-3);
 }
 
 .role-header {
@@ -677,18 +878,18 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #7fc1fe;
+  color: var(--l-accent-2);
 }
 
 .l-role h3 {
   font-size: 1.5rem;
   font-weight: 800;
-  color: #ffffff;
+  color: var(--l-ink);
   margin: 0;
 }
 
 .l-role p {
-  color: #94a3b8;
+  color: var(--l-muted);
   font-size: 0.95rem;
   line-height: 1.5;
   margin: 0;
@@ -700,7 +901,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
-  color: #cbd5e1;
+  color: var(--l-ink-2);
   font-size: 0.9rem;
   line-height: 1.5;
 }
@@ -713,8 +914,8 @@
 }
 
 .l-step {
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--l-glass);
+  border: 1px solid var(--l-line);
   border-radius: 14px;
   padding: 1.85rem 1.6rem;
   backdrop-filter: blur(12px);
@@ -727,25 +928,25 @@
 
 .l-step:hover {
   transform: translateY(-3px);
-  border-color: rgba(56, 189, 248, 0.25);
+  border-color: var(--l-accent-line-2);
 }
 
 .step-number {
   font-size: 1.5rem;
   font-weight: 900;
-  color: #38bdf8;
+  color: var(--l-accent);
   letter-spacing: -0.02em;
 }
 
 .l-step h3 {
   font-size: 1.15rem;
   font-weight: 800;
-  color: #ffffff;
+  color: var(--l-ink);
   margin: 0;
 }
 
 .l-step p {
-  color: #94a3b8;
+  color: var(--l-muted);
   font-size: 0.9rem;
   line-height: 1.55;
   margin: 0;
@@ -762,12 +963,12 @@
 }
 
 .l-band-inner {
-  background: linear-gradient(135deg, rgba(8, 30, 68, 0.9), rgba(3, 14, 32, 0.95));
-  border: 1px solid rgba(127, 193, 254, 0.25);
+  background: linear-gradient(135deg, var(--l-band-a), var(--l-band-b));
+  border: 1px solid var(--l-line-hi-2);
   border-radius: 20px;
   padding: 3rem 2.5rem;
   backdrop-filter: blur(20px);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--l-shadow-band);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -778,49 +979,422 @@
 .l-band-inner h2 {
   font-size: 1.75rem;
   font-weight: 800;
-  color: #ffffff;
+  color: var(--l-ink);
   margin: 0 0 0.5rem 0;
+  /* The flex line sizes from each item's base width, and this single-line
+     heading was 627px wide — enough on its own to push the buttons onto a
+     second row and leave the right half of the band empty. Breaking it keeps
+     the copy block narrow so the call-to-action sits beside it. */
+  max-width: 22ch;
+}
+
+.l-band-inner > div:first-child {
+  /* Without `min-width: 0` a flex item refuses to shrink below its longest
+     line, so the one-sentence subtitle kept the copy block at 627px wide and
+     the two buttons wrapped onto their own row, leaving the right half of the
+     band empty. Allow it to shrink and let the sentence break instead. */
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .l-band-inner p {
-  color: #94a3b8;
+  color: var(--l-muted);
   font-size: 0.95rem;
   margin: 0;
+  max-width: 46ch;
+}
+
+.l-band-inner .l-cta {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+}
+
+/* ---------- Module inventory ---------- */
+.l-modules {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.25rem;
+}
+
+.l-module {
+  background: var(--l-glass);
+  border: 1px solid var(--l-line);
+  border-radius: 14px;
+  padding: 1.5rem 1.4rem 1.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  transition: transform 0.22s ease, border-color 0.22s ease, background-color 0.22s ease;
+}
+
+.l-module:hover {
+  transform: translateY(-3px);
+  border-color: var(--l-accent-line-3);
+  background: var(--l-glass-hover);
+}
+
+.l-module .l-ico {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--l-accent-wash-4);
+  border: 1px solid var(--l-accent-line-2);
+  color: var(--l-accent);
+}
+
+.l-module h3 {
+  font-size: 1.02rem;
+  font-weight: 800;
+  color: var(--l-ink);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.l-module p {
+  color: var(--l-muted);
+  font-size: 0.88rem;
+  line-height: 1.55;
+  margin: 0;
+  flex: 1;
+}
+
+.module-meta {
+  align-self: flex-start;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--l-accent);
+  background: var(--l-accent-wash);
+  border: 1px solid var(--l-accent-line);
+  border-radius: 999px;
+  padding: 0.25rem 0.6rem;
+}
+
+/* ---------- Term timeline ---------- */
+.l-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+}
+
+.l-tl-step {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 1.25rem;
+  padding: 1.4rem 0;
+  border-top: 1px solid var(--l-line-soft);
+}
+
+.l-tl-step:last-child { border-bottom: 1px solid var(--l-line-soft); }
+
+.tl-step-num {
+  font-size: 1.35rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: var(--l-accent);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+}
+
+.tl-step-body h3 {
+  font-size: 1.08rem;
+  font-weight: 800;
+  color: var(--l-ink);
+  margin: 0 0 0.35rem 0;
+}
+
+.tl-step-body p {
+  color: var(--l-muted);
+  font-size: 0.94rem;
+  line-height: 1.6;
+  margin: 0;
+  max-width: 70ch;
+}
+
+/* ---------- Coursework / gradebook ---------- */
+.l-hosting {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 2.5rem;
+  align-items: start;
+}
+
+.l-host-copy > h2 {
+  font-size: clamp(1.75rem, 3.2vw, 2.4rem);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  color: var(--l-ink);
+  margin: 0 0 0.75rem 0;
+}
+
+.l-host-copy > p {
+  color: var(--l-muted);
+  font-size: 1.02rem;
+  line-height: 1.65;
+  margin: 0 0 1.75rem 0;
+  max-width: 62ch;
+}
+
+.l-facts {
+  display: grid;
+  gap: 1.15rem;
+}
+
+.l-fact {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 0.85rem;
+  align-items: start;
+}
+
+.fact-mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: var(--l-accent-wash-2);
+  border: 1px solid var(--l-accent-line-2);
+  color: var(--l-accent);
+}
+
+.l-fact h3 {
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: var(--l-ink);
+  margin: 0 0 0.25rem 0;
+}
+
+.l-fact p {
+  color: var(--l-muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.l-spec {
+  background: var(--l-glass);
+  border: 1px solid var(--l-line);
+  border-radius: 16px;
+  padding: 1.5rem 1.5rem 1.35rem;
+}
+
+.spec-title {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--l-accent);
+  margin: 0 0 1rem 0;
+}
+
+.spec-list {
+  margin: 0;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.spec-row {
+  display: grid;
+  gap: 0.15rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--l-line-soft);
+}
+
+.spec-row:last-child { border-bottom: 0; padding-bottom: 0; }
+
+.spec-row dt {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--l-faint);
+}
+
+.spec-row dd {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--l-ink-2);
+}
+
+.spec-note {
+  margin: 1.15rem 0 0 0;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: var(--l-muted);
+}
+
+.spec-note code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.78em;
+  padding: 0.1rem 0.35rem;
+  border-radius: 5px;
+  background: var(--l-accent-wash-2);
+  border: 1px solid var(--l-accent-line);
+  color: var(--l-accent);
+}
+
+/* ---------- FAQ ---------- */
+.l-faq {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 900px;
+}
+
+.faq-item {
+  background: var(--l-glass);
+  border: 1px solid var(--l-line);
+  border-radius: 12px;
+  padding: 0 1.15rem;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.faq-item:hover { border-color: var(--l-line-hover); }
+
+.faq-item[open] {
+  border-color: var(--l-accent-line-2);
+  background: var(--l-glass-hover);
+}
+
+.faq-item summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  cursor: pointer;
+  list-style: none;
+  padding: 1rem 0;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--l-ink);
+}
+
+.faq-item summary::-webkit-details-marker { display: none; }
+
+.faq-chevron {
+  flex: none;
+  color: var(--l-muted);
+  transition: transform 0.2s ease;
+}
+
+.faq-item[open] .faq-chevron { transform: rotate(180deg); color: var(--l-accent); }
+
+.faq-item p {
+  margin: 0;
+  padding: 0 0 1.1rem;
+  color: var(--l-muted);
+  font-size: 0.92rem;
+  line-height: 1.65;
+  max-width: 78ch;
 }
 
 /* ---------- Footer ---------- */
 .l-footer {
   position: relative;
   z-index: 2;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(2, 6, 14, 0.9);
-  padding: 3rem 1.75rem 3.5rem;
+  border-top: 1px solid var(--l-line);
+  background: var(--l-footer-bg);
+  padding: 3.25rem 1.75rem 2rem;
+  margin-top: 1rem;
 }
 
 .l-footer-inner {
   max-width: 1200px;
   margin: 0 auto;
+}
+
+.l-foot-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, 1fr));
+  gap: 2.25rem;
+  padding-bottom: 2.25rem;
+  border-bottom: 1px solid var(--l-line-soft);
+}
+
+.l-foot-brand {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 0.6rem;
+  gap: 0.85rem;
+  align-items: flex-start;
 }
 
 .footer-tagline {
-  font-size: 0.88rem;
+  font-size: 0.9rem;
   font-weight: 600;
-  color: #cbd5e1;
+  line-height: 1.55;
+  color: var(--l-ink-2);
   margin: 0;
+  max-width: 34ch;
 }
 
-.footer-copy {
-  font-size: 0.78rem;
-  color: #64748b;
-  margin: 0;
+.l-foot-col h4 {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--l-faint);
+  margin: 0 0 0.9rem 0;
 }
+
+.l-foot-col ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.l-foot-col a {
+  color: var(--l-ink-2);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: color 0.15s ease;
+}
+
+.l-foot-col a:hover { color: var(--l-accent); }
+
+.l-foot-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  padding-top: 1.5rem;
+}
+
+.l-foot-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-left: auto;
+}
+
+.foot-top {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--l-muted);
+  text-decoration: none;
+}
+
+.foot-top:hover { color: var(--l-accent); }
 
 /* ---------- Responsive Adjustments ---------- */
+@media (max-width: 1120px) {
+  .landing-menu { margin-left: 0.75rem; gap: 0.1rem; }
+  .landing-menu a { padding: 0.45rem 0.6rem; font-size: 0.84rem; }
+  .l-hosting { grid-template-columns: 1fr; gap: 2rem; }
+  .l-foot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2rem; }
+}
+
 @media (max-width: 980px) {
   .l-hero-inner {
     grid-template-columns: 1fr;
@@ -840,6 +1414,14 @@
     flex-direction: column;
     align-items: flex-start;
   }
+
+  /* The desktop band pins its buttons to one nowrap row on the right; once the
+     band stacks vertically they have to be allowed to wrap again or the pair
+     overflows a phone viewport. */
+  .l-band-inner .l-cta {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
 }
 
 @media (max-width: 640px) {
@@ -851,4 +1433,12 @@
   .preview-metric-row {
     grid-template-columns: 1fr;
   }
+
+  .l-tl-step { grid-template-columns: 42px 1fr; gap: 0.9rem; padding: 1.15rem 0; }
+  .tl-step-num { font-size: 1.1rem; }
+  .l-foot-grid { grid-template-columns: 1fr; gap: 1.75rem; }
+  .l-foot-bottom { flex-direction: column; align-items: flex-start; }
+  .l-foot-actions { margin-left: 0; }
+  .l-section { padding: 3.5rem 1.25rem; }
+  .l-hero { padding: 3.5rem 1.25rem 4rem; }
 }

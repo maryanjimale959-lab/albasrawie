@@ -3,7 +3,7 @@
 // assignment workflow, project workflow, attendance, permissions, persistence.
 import crypto from "crypto";
 import fs from "fs";
-import Database from "better-sqlite3";
+import { db, closeDb } from "../lib/db.js";
 import { chromium } from "playwright-core";
 
 const BASE = "http://localhost:3000";
@@ -12,7 +12,6 @@ const stamp = Date.now();
 const results = [];
 const ok = (name, cond, extra = "") => { results.push([cond, name]); console.log(`${cond ? "PASS" : "FAIL"} ${name}${extra ? " — " + extra : ""}`); };
 
-const db = new Database("data/albasrawie.db");
 const sha = (t) => crypto.createHash("sha256").update(t).digest("hex");
 
 const browser = await chromium.launch({ executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: true });
@@ -57,7 +56,7 @@ ok("T1 student registration → dashboard", /dashboard|join|courses/.test(p.url(
 const teacherEmail = `e2e.teacher.${stamp}@test.local`;
 const ctxT = await newCtx();
 const pt = await ctxT.newPage();
-await pt.goto(`${BASE}/register?role=teacher`);
+await pt.goto(`${BASE}/register/teacher`); // teacher sign-up has its own route; /register is students-only
 for (const [n, v] of Object.entries({ full_name: "E2E Teacher", email: teacherEmail, password: PW, confirm: PW, bio: "E2E test teacher." })) {
   const f = pt.locator(`input[name="${n}"],textarea[name="${n}"],select[name="${n}"]`);
   if (await f.count()) await f.first().fill(v);
@@ -78,7 +77,7 @@ await clickBtn(pt, "Create course");
 await pt.waitForURL(/\/courses\/\d+/, { timeout: 15000 }).catch(() => {});
 if (!/\/courses\/\d+/.test(pt.url())) { await dumpFailure(pt, "course-create"); ok("T2 teacher created course", false, `stuck at ${pt.url()}`); }
 const courseId = Number(pt.url().match(/courses\/(\d+)/)?.[1]);
-if (!courseId) { console.log("ABORT: no course id captured"); await browser.close(); process.exit(1); }
+if (!courseId) { console.log("ABORT: no course id captured"); await browser.close(); await closeDb(); process.exit(1); }
 const codeText = await pt.locator(".code").first().innerText();
 const courseCode = codeText.trim();
 ok("T2a teacher created course + code", /^\S+-\S+$/.test(courseCode), courseCode);
@@ -93,7 +92,7 @@ ok("T2b student joined via code → course page", p.url().includes(`/courses/${c
 
 // --- persistence: logout + login as student ---
 await p.goto(`${BASE}/dashboard`);
-const sess = db.prepare("SELECT token_hash FROM sessions ORDER BY rowid DESC LIMIT 1").get();
+const sess = await db.prepare("SELECT token_hash FROM sessions ORDER BY created_at DESC LIMIT 1").get();
 ok("T10a session persisted in DB", !!sess);
 
 // --- Test 4: assignment workflow ---
@@ -110,7 +109,7 @@ ok("T4 UI has publish checkbox", await pub.count() > 0);
 if (await pub.count()) await pub.first().check().catch(() => {});
 await clickBtn(pt, "Create assignment");
 await pt.waitForTimeout(1500);
-const aRow = db.prepare("SELECT id FROM assignments WHERE course_id = ? ORDER BY id DESC LIMIT 1").get(courseId);
+const aRow = await db.prepare("SELECT id FROM assignments WHERE course_id = ? ORDER BY id DESC LIMIT 1").get(courseId);
 ok("T4a teacher published assignment", !!aRow);
 
 await p.goto(`${BASE}/assignments/${aRow.id}`);
@@ -121,9 +120,9 @@ if (await content.count()) {
   await clickBtn(p, "Submit assignment");
   await p.waitForTimeout(1500);
 }
-const sub = db.prepare("SELECT * FROM assignment_submissions WHERE assignment_id = ?").get(aRow.id);
+const sub = await db.prepare("SELECT * FROM assignment_submissions WHERE assignment_id = ?").get(aRow.id);
 ok("T4c submission stored", !!sub);
-const act = db.prepare("SELECT * FROM learning_activities WHERE type='assignment_submitted' AND related_id=?").get(aRow.id);
+const act = await db.prepare("SELECT * FROM learning_activities WHERE type='assignment_submitted' AND related_id=?").get(aRow.id);
 ok("T4d activity calendar updated", !!act);
 
 // teacher grades
@@ -137,7 +136,7 @@ if (await score.count()) {
   const gradeBtn = pt.locator('button:has-text("Grade"), button:has-text("Release")').first();
   if (await gradeBtn.count()) { await gradeBtn.click(); await pt.waitForTimeout(1500); }
 }
-const graded = db.prepare("SELECT status, score FROM assignment_submissions WHERE assignment_id=?").get(aRow.id);
+const graded = await db.prepare("SELECT status, score FROM assignment_submissions WHERE assignment_id=?").get(aRow.id);
 ok("T4f grade saved", graded.score === 18 || graded.status === "graded", JSON.stringify(graded));
 
 // --- Test 5: project workflow ---
@@ -152,13 +151,14 @@ const ppub = pt.locator('input[name="publish"]');
 if (await ppub.count()) await ppub.first().check().catch(() => {});
 await clickBtn(pt, "Create project");
 await pt.waitForTimeout(1500);
-const proj = db.prepare("SELECT * FROM projects WHERE course_id=? ORDER BY id DESC LIMIT 1").get(courseId);
-ok("T5a project created with milestones", !!proj && db.prepare("SELECT COUNT(*) n FROM project_milestones WHERE project_id=?").get(proj.id).n >= 2);
+const proj = await db.prepare("SELECT * FROM projects WHERE course_id=? ORDER BY id DESC LIMIT 1").get(courseId);
+const msCount = proj ? (await db.prepare("SELECT COUNT(*) n FROM project_milestones WHERE project_id=?").get(proj.id)).n : 0;
+ok("T5a project created with milestones", !!proj && msCount >= 2);
 await p.goto(`${BASE}/projects/${proj.id}`);
 const msSave = p.locator('.milestone button[type="submit"]').first();
 ok("T5 UI has milestone toggles", await msSave.count() > 0);
 if (await msSave.count()) { await msSave.click(); await p.waitForTimeout(1500); }
-const prog = db.prepare("SELECT COUNT(*) n FROM project_progress WHERE project_id=?").get(proj.id);
+const prog = await db.prepare("SELECT COUNT(*) n FROM project_progress WHERE project_id=?").get(proj.id);
 ok("T5b milestone progress recorded", prog.n >= 1, `rows=${prog.n}`);
 
 // --- Test 7: attendance ---
@@ -166,7 +166,7 @@ await pt.goto(`${BASE}/courses/${courseId}/attendance`);
 const startBtn = pt.locator('button:has-text("Start session")').first();
 if (await startBtn.count()) { await startBtn.click(); await pt.waitForTimeout(2000); }
 const joinHref = await pt.locator('a[href*="/attendance/join?session="]').first().getAttribute("href").catch(() => null);
-const sessRow = db.prepare("SELECT * FROM attendance_sessions WHERE course_id=? AND status='open' ORDER BY id DESC LIMIT 1").get(courseId);
+const sessRow = await db.prepare("SELECT * FROM attendance_sessions WHERE course_id=? AND status='open' ORDER BY id DESC LIMIT 1").get(courseId);
 ok("T7a teacher started session", !!sessRow, sessRow?.code);
 if (sessRow) {
   await p.goto(`${BASE}${joinHref || `/attendance/join?session=${sessRow.id}&code=${sessRow.code}`}`);
@@ -174,12 +174,12 @@ if (sessRow) {
   const haveBtn = await joinBtn.count();
   if (!haveBtn) console.log("  join page says:", JSON.stringify(await p.locator(".alert, .panel p.muted, .panel .small").allInnerTexts()).slice(0, 300));
   if (haveBtn) { await joinBtn.first().click(); await p.waitForTimeout(2000); }
-  const rec = db.prepare("SELECT * FROM attendance_records WHERE session_id=?").get(sessRow.id);
+  const rec = await db.prepare("SELECT * FROM attendance_records WHERE session_id=?").get(sessRow.id);
   ok("T7b student marked via code link", !!rec, rec?.status);
   await pt.goto(`${BASE}/courses/${courseId}/attendance`);
   const closeBtn = pt.locator('button:has-text("Close")').first();
   if (await closeBtn.count()) { await closeBtn.click(); await pt.waitForTimeout(1500); }
-  const closed = db.prepare("SELECT status FROM attendance_sessions WHERE id=?").get(sessRow.id);
+  const closed = await db.prepare("SELECT status FROM attendance_sessions WHERE id=?").get(sessRow.id);
   ok("T7c session closed + absent fill", closed?.status === "closed");
 }
 
@@ -218,7 +218,7 @@ await fill(p, 'input[name="code"],textarea[name="code"]', code2);
 await p.click('button:has-text("Find course")');
 await clickBtn(p, "Join this course");
 await p.waitForTimeout(1200);
-const enr = db.prepare("SELECT COUNT(*) n FROM enrollments WHERE course_id IN (?,?) AND status='active'").get(courseId, c2);
+const enr = await db.prepare("SELECT COUNT(*) n FROM enrollments WHERE course_id IN (?,?) AND status='active'").get(courseId, c2);
 ok("T3 student enrolled in two courses separately", enr.n === 2);
 
 // --- Test 6: teacher opens student profile ---
@@ -230,10 +230,11 @@ const body = await pt.content();
 ok("T6 teacher sees student profile with heatmap+streak", body.includes("Learning activity") && (body.includes("streak") || body.includes("Streak")));
 
 // --- Test 8: calendar correctness (no duplicate inflation) ---
-const dup = db.prepare("SELECT COUNT(*) n FROM learning_activities WHERE type='assignment_submitted' AND related_id=?").get(aRow.id);
+const dup = await db.prepare("SELECT COUNT(*) n FROM learning_activities WHERE type='assignment_submitted' AND related_id=?").get(aRow.id);
 ok("T8 duplicate submission does not inflate calendar", dup.n === 1);
 
 await browser.close();
+await closeDb();
 const fails = results.filter(([c]) => !c).length;
 console.log(fails === 0 ? "ALL E2E PASS" : `${fails} E2E FAILURES`);
 process.exit(fails ? 1 : 0);

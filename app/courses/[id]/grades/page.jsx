@@ -9,10 +9,10 @@ import GradesView from "@/components/GradesView";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Course grades · Albasrawie" };
 
-export default function CourseGradesPage({ params }) {
-  const user = requireUser();
+export default async function CourseGradesPage({ params }) {
+  const user = await requireUser();
   const id = Number(params.id);
-  const course = user.role === "student" ? courseForStudent(user, id) : courseForTeacher(user, id);
+  const course = user.role === "student" ? await courseForStudent(user, id) : await courseForTeacher(user, id);
   if (!course) notFound();
 
   return (

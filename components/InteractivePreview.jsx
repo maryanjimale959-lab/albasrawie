@@ -20,13 +20,13 @@ const DATA_BY_TAB = {
     items: [
       {
         title: "Systems Architecture",
-        desc: "Milestone 3: WAL Logging Engine verified",
+        desc: "Milestone 3: project brief reviewed and signed off",
         time: "Just now",
         status: "verified",
       },
       {
         title: "Database Engineering",
-        desc: "Session attendance audited via cryptographic QR",
+        desc: "Attendance marked with the class QR code",
         time: "2h ago",
         status: "audited",
       },
@@ -56,7 +56,7 @@ const DATA_BY_TAB = {
       },
       {
         title: "Lab A Workshop",
-        desc: "Attendance confirmed and locked into SQLite WAL",
+        desc: "Attendance confirmed by the teacher and locked",
         time: "Yesterday",
         status: "verified",
       },

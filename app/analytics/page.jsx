@@ -12,20 +12,15 @@ export const metadata = { title: "Analytics · Albasrawie" };
 
 const addDays = (iso, n) => { const d = new Date(iso + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 
-export default function AnalyticsPage() {
-  const user = requireUser("teacher");
-  const courses = teacherCourses(user.id).filter((c) => !c.archived);
+export default async function AnalyticsPage() {
+  const user = await requireUser("teacher");
+  const courses = (await teacherCourses(user.id)).filter((c) => !c.archived);
   const today = localDate(user.time_zone);
 
-  return (
-    <Shell user={user}>
-      <div className="page-head">
-        <div><h1>Analytics</h1><p className="muted">How your classes are doing — submissions, attendance and activity.</p></div>
-      </div>
-      {courses.length === 0 ? (
-        <Empty title="No active courses" text="Create a course and invite students to see analytics here." />
-      ) : courses.map((c) => {
-        const stats = db.prepare(`
+  const analytics = courses.map((course) => ({ course }));
+  for (const row of analytics) {
+    const c = row.course;
+    row.stats = await db.prepare(`
           SELECT
             (SELECT COUNT(*) FROM enrollments WHERE course_id = ? AND status='active') students,
             (SELECT COUNT(*) FROM assignments WHERE course_id = ? AND published=1) assignments,
@@ -38,26 +33,37 @@ export default function AnalyticsPage() {
               WHERE a.course_id=? AND s.grade_released=1 AND s.score IS NOT NULL) avg_assign,
             (SELECT ROUND(100.0*SUM(CASE WHEN r.status IN ('present','late') THEN 1 ELSE 0 END)/COUNT(*)) FROM attendance_records r
               JOIN attendance_sessions s ON s.id=r.session_id AND s.status='closed' WHERE s.course_id=?) att_rate`).get(c.id, c.id, c.id, c.id, c.id, c.id, c.id);
-        const weekly = [];
-        for (let w = 11; w >= 0; w--) {
-          const from = addDays(today, -w * 7 - 6), to = addDays(today, -w * 7);
-          const n = db.prepare(`SELECT COUNT(*) n FROM learning_activities la JOIN enrollments e ON e.student_id = la.student_id AND e.course_id = ? AND e.status='active'
-            WHERE la.activity_date BETWEEN ? AND ?`).get(c.id, from, to).n;
-          weekly.push({ label: `Week of ${from}`, short: from.slice(5, 7), count: n });
-        }
-        const topStudents = db.prepare(`
+    const weekly = [];
+    for (let w = 11; w >= 0; w--) {
+      const from = addDays(today, -w * 7 - 6), to = addDays(today, -w * 7);
+      const n = (await db.prepare(`SELECT COUNT(*) n FROM learning_activities la JOIN enrollments e ON e.student_id = la.student_id AND e.course_id = ? AND e.status='active'
+            WHERE la.activity_date BETWEEN ? AND ?`).get(c.id, from, to)).n;
+      weekly.push({ label: `Week of ${from}`, short: from.slice(5, 7), count: n });
+    }
+    row.weekly = weekly;
+    row.topStudents = await db.prepare(`
           SELECT u.id, u.full_name, COUNT(*) n FROM learning_activities la JOIN users u ON u.id = la.student_id
           JOIN enrollments e ON e.student_id = u.id AND e.course_id = ? AND e.status='active'
-          GROUP BY u.id ORDER BY n DESC LIMIT 5`).all(c.id);
-        const needSupport = db.prepare(`
+          GROUP BY u.id, u.full_name ORDER BY n DESC LIMIT 5`).all(c.id);
+    row.needSupport = await db.prepare(`
           SELECT u.id, u.full_name,
-            (SELECT COUNT(*) FROM assignments a WHERE a.course_id=? AND a.published=1 AND a.due_at < datetime('now')
+            (SELECT COUNT(*) FROM assignments a WHERE a.course_id=? AND a.published=1 AND a.due_at < UTC_TIMESTAMP()
               AND NOT EXISTS (SELECT 1 FROM assignment_submissions s WHERE s.assignment_id=a.id AND s.student_id=u.id)) missing,
             (SELECT ROUND(100.0*SUM(CASE WHEN r.status IN ('present','late') THEN 1 ELSE 0 END)/COUNT(*)) FROM attendance_records r
               JOIN attendance_sessions s ON s.id=r.session_id AND s.status='closed' WHERE s.course_id=? AND r.student_id=u.id) att
           FROM enrollments e JOIN users u ON u.id=e.student_id
-          WHERE e.course_id=? AND e.status='active' GROUP BY u.id HAVING missing > 0 OR att < 70 ORDER BY missing DESC LIMIT 5`).all(c.id, c.id, c.id);
+          WHERE e.course_id=? AND e.status='active' GROUP BY u.id, u.full_name HAVING missing > 0 OR att < 70 ORDER BY missing DESC LIMIT 5`).all(c.id, c.id, c.id);
+  }
 
+  return (
+    <Shell user={user}>
+      <div className="page-head">
+        <div><h1>Analytics</h1><p className="muted">How your classes are doing — submissions, attendance and activity.</p></div>
+      </div>
+      {courses.length === 0 ? (
+        <Empty title="No active courses" text="Create a course and invite students to see analytics here." />
+      ) : analytics.map((row) => {
+        const { course: c, stats, weekly, topStudents, needSupport } = row;
         return (
           <Reveal key={c.id}>
             <section className="panel">

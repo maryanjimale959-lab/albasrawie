@@ -14,8 +14,8 @@ const obj = (fd) => Object.fromEntries([...fd.entries()].map(([k, v]) => [k, cle
 const firstError = (r) => r.error.issues[0].message;
 
 /** Teachers grade their own courses; admins may grade anywhere the guard allows. */
-function gradingUser() {
-  const u = requireUser();
+async function gradingUser() {
+  const u = await requireUser();
   if (u.role !== "teacher" && u.role !== "admin") redirect("/dashboard");
   if (u.status !== "active") redirect("/dashboard");
   return u;
@@ -39,17 +39,17 @@ function scoreOf(fd, maxMarks) {
 /* ------------------------------ assignments ------------------------------ */
 
 export async function gradeAssignment(_prev, fd) {
-  const user = gradingUser();
+  const user = await gradingUser();
   const parsed = targetSchema.safeParse(obj(fd));
   if (!parsed.success) return { error: firstError(parsed) };
   const assignmentId = Number(fd.get("assignment_id"));
   const { student_id: studentId, intent } = parsed.data;
 
-  const a = getAssignment(assignmentId);
+  const a = await getAssignment(assignmentId);
   if (!a) return { error: "Assignment not found." };
-  if (!courseForTeacher(user, a.course_id)) return { error: "Only the teacher of this course can grade these submissions." };
-  if (!enrolledStudentIds(a.course_id).includes(studentId)) return { error: "That student isn't enrolled in this course." };
-  const sub = db.prepare("SELECT * FROM assignment_submissions WHERE assignment_id = ? AND student_id = ?").get(assignmentId, studentId);
+  if (!(await courseForTeacher(user, a.course_id))) return { error: "Only the teacher of this course can grade these submissions." };
+  if (!(await enrolledStudentIds(a.course_id)).includes(studentId)) return { error: "That student isn't enrolled in this course." };
+  const sub = await db.prepare("SELECT * FROM assignment_submissions WHERE assignment_id = ? AND student_id = ?").get(assignmentId, studentId);
   if (!sub) return { error: "There's no submission to grade for this student." };
 
   const feedback = clean(String(fd.get("feedback") ?? "")) || null;
@@ -59,30 +59,30 @@ export async function gradeAssignment(_prev, fd) {
   const score = scored.score;
   if ((intent === "release") && score === null) return { error: "Enter a score before releasing the grade." };
 
-  db.transaction(() => {
+  await db.transaction(async () => {
     switch (intent) {
       case "feedback":
-        db.prepare("UPDATE assignment_submissions SET score = COALESCE(?, score), feedback = ? WHERE id = ?").run(score, feedback, sub.id);
-        audit(user.id, "grade.feedback", `assignment:${a.id}`, { studentId, score });
+        await db.prepare("UPDATE assignment_submissions SET score = COALESCE(?, score), feedback = ? WHERE id = ?").run(score, feedback, sub.id);
+        await audit(user.id, "grade.feedback", `assignment:${a.id}`, { studentId, score });
         break;
       case "release":
-        db.prepare("UPDATE assignment_submissions SET score = ?, feedback = ?, status = 'graded', grade_released = 1 WHERE id = ?").run(score, feedback, sub.id);
-        audit(user.id, "grade.release", `assignment:${a.id}`, { studentId, score, max_marks: a.max_marks });
+        await db.prepare("UPDATE assignment_submissions SET score = ?, feedback = ?, status = 'graded', grade_released = 1 WHERE id = ?").run(score, feedback, sub.id);
+        await audit(user.id, "grade.release", `assignment:${a.id}`, { studentId, score, max_marks: a.max_marks });
         break;
       case "revision":
-        db.prepare("UPDATE assignment_submissions SET score = COALESCE(?, score), feedback = ?, status = 'revision', grade_released = 0 WHERE id = ?").run(score, feedback, sub.id);
-        audit(user.id, "grade.revision", `assignment:${a.id}`, { studentId });
+        await db.prepare("UPDATE assignment_submissions SET score = COALESCE(?, score), feedback = ?, status = 'revision', grade_released = 0 WHERE id = ?").run(score, feedback, sub.id);
+        await audit(user.id, "grade.revision", `assignment:${a.id}`, { studentId });
         break;
       default: // reopen -> let the student hand in again
-        db.prepare("UPDATE assignment_submissions SET status = 'revision', grade_released = 0 WHERE id = ?").run(sub.id);
-        audit(user.id, "grade.reopen", `assignment:${a.id}`, { studentId });
+        await db.prepare("UPDATE assignment_submissions SET status = 'revision', grade_released = 0 WHERE id = ?").run(sub.id);
+        await audit(user.id, "grade.reopen", `assignment:${a.id}`, { studentId });
     }
   })();
 
   if (intent === "release") {
-    notify(studentId, "grade", `Grade released for "${a.title}": ${score}/${a.max_marks}`, `/assignments/${a.id}`);
+    await notify(studentId, "grade", `Grade released for "${a.title}": ${score}/${a.max_marks}`, `/assignments/${a.id}`);
   } else if (intent === "revision" || intent === "reopen") {
-    notify(studentId, "assignment", `Revision requested for "${a.title}"`, `/assignments/${a.id}`);
+    await notify(studentId, "assignment", `Revision requested for "${a.title}"`, `/assignments/${a.id}`);
   }
 
   revalidatePath(`/assignments/${a.id}`);
@@ -98,17 +98,17 @@ export async function gradeAssignment(_prev, fd) {
 /* ------------------------------- projects -------------------------------- */
 
 export async function gradeProject(_prev, fd) {
-  const user = gradingUser();
+  const user = await gradingUser();
   const parsed = targetSchema.safeParse(obj(fd));
   if (!parsed.success) return { error: firstError(parsed) };
   const projectId = Number(fd.get("project_id"));
   const { student_id: studentId, intent } = parsed.data;
 
-  const p = getProject(projectId);
+  const p = await getProject(projectId);
   if (!p) return { error: "Project not found." };
-  if (!courseForTeacher(user, p.course_id)) return { error: "Only the teacher of this course can grade these submissions." };
-  if (!enrolledStudentIds(p.course_id).includes(studentId)) return { error: "That student isn't enrolled in this course." };
-  const sub = db.prepare("SELECT * FROM project_submissions WHERE project_id = ? AND student_id = ?").get(projectId, studentId);
+  if (!(await courseForTeacher(user, p.course_id))) return { error: "Only the teacher of this course can grade these submissions." };
+  if (!(await enrolledStudentIds(p.course_id)).includes(studentId)) return { error: "That student isn't enrolled in this course." };
+  const sub = await db.prepare("SELECT * FROM project_submissions WHERE project_id = ? AND student_id = ?").get(projectId, studentId);
   if (!sub) return { error: "This student hasn't submitted their project yet." };
 
   const feedback = clean(String(fd.get("feedback") ?? "")) || null;
@@ -118,28 +118,28 @@ export async function gradeProject(_prev, fd) {
   const score = scored.score;
   if (intent === "complete" && score === null) return { error: "Enter a score before completing and grading the project." };
 
-  db.transaction(() => {
+  await db.transaction(async () => {
     switch (intent) {
       case "review":
-        db.prepare("UPDATE project_submissions SET status = 'under_review', score = COALESCE(?, score), feedback = COALESCE(?, feedback) WHERE id = ?").run(score, feedback, sub.id);
-        audit(user.id, "grade.review", `project:${p.id}`, { studentId });
+        await db.prepare("UPDATE project_submissions SET status = 'under_review', score = COALESCE(?, score), feedback = COALESCE(?, feedback) WHERE id = ?").run(score, feedback, sub.id);
+        await audit(user.id, "grade.review", `project:${p.id}`, { studentId });
         break;
       case "revision":
-        db.prepare("UPDATE project_submissions SET status = 'revision', grade_released = 0, score = COALESCE(?, score), feedback = ? WHERE id = ?").run(score, feedback, sub.id);
-        audit(user.id, "grade.revision", `project:${p.id}`, { studentId });
+        await db.prepare("UPDATE project_submissions SET status = 'revision', grade_released = 0, score = COALESCE(?, score), feedback = ? WHERE id = ?").run(score, feedback, sub.id);
+        await audit(user.id, "grade.revision", `project:${p.id}`, { studentId });
         break;
       default: // complete & grade
-        db.prepare("UPDATE project_submissions SET status = 'completed', grade_released = 1, score = ?, feedback = COALESCE(?, feedback) WHERE id = ?").run(score, feedback, sub.id);
-        audit(user.id, "grade.release", `project:${p.id}`, { studentId, score, max_marks: p.max_marks });
+        await db.prepare("UPDATE project_submissions SET status = 'completed', grade_released = 1, score = ?, feedback = COALESCE(?, feedback) WHERE id = ?").run(score, feedback, sub.id);
+        await audit(user.id, "grade.release", `project:${p.id}`, { studentId, score, max_marks: p.max_marks });
     }
   })();
 
   if (intent === "complete") {
-    notify(studentId, "grade", `Grade released for "${p.title}": ${score}/${p.max_marks}`, `/projects/${p.id}`);
+    await notify(studentId, "grade", `Grade released for "${p.title}": ${score}/${p.max_marks}`, `/projects/${p.id}`);
   } else if (intent === "revision") {
-    notify(studentId, "project", `Revision requested for "${p.title}"`, `/projects/${p.id}`);
+    await notify(studentId, "project", `Revision requested for "${p.title}"`, `/projects/${p.id}`);
   } else {
-    notify(studentId, "project", `Your project "${p.title}" is under review`, `/projects/${p.id}`);
+    await notify(studentId, "project", `Your project "${p.title}" is under review`, `/projects/${p.id}`);
   }
 
   revalidatePath(`/projects/${p.id}`);
@@ -154,22 +154,22 @@ export async function gradeProject(_prev, fd) {
 
 /** Release every score that a teacher has filled in but not yet shown (one course). */
 export async function releaseCourseGrades(fd) {
-  const user = gradingUser();
+  const user = await gradingUser();
   const courseId = Number(fd.get("course_id"));
-  if (!courseForTeacher(user, courseId)) return;
-  const rows = db.prepare(`
+  if (!(await courseForTeacher(user, courseId))) return;
+  const rows = await db.prepare(`
     SELECT s.id, s.student_id, s.score, a.max_marks, a.title, a.id AS assignment_id
     FROM assignment_submissions s JOIN assignments a ON a.id = s.assignment_id
     WHERE a.course_id = ? AND s.grade_released = 0 AND s.score IS NOT NULL`).all(courseId);
   if (!rows.length) return;
-  db.transaction(() => {
-    const stmt = db.prepare("UPDATE assignment_submissions SET status = 'graded', grade_released = 1 WHERE id = ?");
+  await db.transaction(async () => {
+    const stmt = await db.prepare("UPDATE assignment_submissions SET status = 'graded', grade_released = 1 WHERE id = ?");
     for (const r of rows) {
-      stmt.run(r.id);
-      audit(user.id, "grade.release", `assignment:${r.assignment_id}`, { studentId: r.student_id, score: r.score, max_marks: r.max_marks, bulk: true });
+      await stmt.run(r.id);
+      await audit(user.id, "grade.release", `assignment:${r.assignment_id}`, { studentId: r.student_id, score: r.score, max_marks: r.max_marks, bulk: true });
     }
   })();
-  for (const r of rows) notify(r.student_id, "grade", `Grade released for "${r.title}": ${r.score}/${r.max_marks}`, `/assignments/${r.assignment_id}`);
+  for (const r of rows) await notify(r.student_id, "grade", `Grade released for "${r.title}": ${r.score}/${r.max_marks}`, `/assignments/${r.assignment_id}`);
   for (const r of rows) revalidatePath(`/assignments/${r.assignment_id}`);
   revalidatePath("/grades");
   revalidatePath(`/courses/${courseId}/grades`);

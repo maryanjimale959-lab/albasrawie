@@ -20,20 +20,21 @@ const logSchema = z.object({
 
 /** Students log learning done outside the platform. Always marked self-reported. */
 export async function logStudyActivity(_prev, fd) {
-  const user = requireUser("student");
+  const user = await requireUser("student");
   const r = logSchema.safeParse(obj(fd));
   if (!r.success) return { error: firstError(r) };
   const d = r.data;
   let courseId = null;
   if (d.course_id) {
-    const c = courseForStudent(user, Number(d.course_id));
+    const c = await courseForStudent(user, Number(d.course_id));
     if (!c) return { error: "Pick one of your courses or leave it unlinked." };
     courseId = c.id;
   }
-  db.transaction(() => {
-    const id = Number(db.prepare("INSERT INTO study_logs (student_id, course_id, title, minutes, log_date) VALUES (?,?,?,?,?)")
-      .run(user.id, courseId, d.title, d.minutes, d.log_date).lastInsertRowid);
-    logActivity(user.id, {
+  await db.transaction(async () => {
+    const info = await db.prepare("INSERT INTO study_logs (student_id, course_id, title, minutes, log_date) VALUES (?,?,?,?,?)")
+      .run(user.id, courseId, d.title, d.minutes, d.log_date);
+    const id = Number(info.lastInsertRowid);
+    await logActivity(user.id, {
       courseId,
       type: d.kind === "study" ? "study_logged" : "external_project",
       relatedId: id,
@@ -50,13 +51,13 @@ export async function logStudyActivity(_prev, fd) {
 }
 
 export async function deleteStudyLog(fd) {
-  const user = requireUser("student");
+  const user = await requireUser("student");
   const id = Number(fd.get("id"));
-  const row = db.prepare("SELECT * FROM study_logs WHERE id = ? AND student_id = ?").get(id, user.id);
+  const row = await db.prepare("SELECT * FROM study_logs WHERE id = ? AND student_id = ?").get(id, user.id);
   if (!row) return;
-  db.transaction(() => {
-    db.prepare("DELETE FROM study_logs WHERE id = ?").run(id);
-    db.prepare("DELETE FROM learning_activities WHERE student_id = ? AND related_id = ? AND type IN ('study_logged','external_project')").run(user.id, id);
+  await db.transaction(async () => {
+    await db.prepare("DELETE FROM study_logs WHERE id = ?").run(id);
+    await db.prepare("DELETE FROM learning_activities WHERE student_id = ? AND related_id = ? AND type IN ('study_logged','external_project')").run(user.id, id);
   })();
   revalidatePath("/activity");
   revalidatePath("/dashboard");

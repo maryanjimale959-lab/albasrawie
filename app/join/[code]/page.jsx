@@ -9,12 +9,12 @@ import { Logo } from "@/components/Logo";
 
 export const metadata = { title: "Join a course · Albasrawie" };
 
-export default function JoinConfirm({ params }) {
+export default async function JoinConfirm({ params }) {
   const code = decodeURIComponent(params.code);
-  const user = getUser();
+  const user = await getUser();
   if (!user) redirect(`/register?code=${encodeURIComponent(code)}`);
-  requireUser("student");
-  const res = lookupCode(code, user.id);
+  await requireUser("student");
+  const res = await lookupCode(code, user.id);
   if (res.already) redirect(`/courses/${res.courseId}`);
 
   return (

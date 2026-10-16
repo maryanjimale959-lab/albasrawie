@@ -16,18 +16,18 @@ export const metadata = { title: "Attendance session · Albasrawie" };
 const TONE = { present: "green", late: "amber", absent: "red", excused: "neutral" };
 const STATUSES = ["present", "late", "excused", "absent"];
 
-export default function SessionDetailPage({ params }) {
-  const user = requireUser();
+export default async function SessionDetailPage({ params }) {
+  const user = await requireUser();
   if (user.role === "student") notFound(); // students use /attendance, never this page
 
-  const session = att.getSession(Number(params.sessionId));
+  const session = await att.getSession(Number(params.sessionId));
   if (!session || session.course_id !== Number(params.id)) notFound();
-  const course = courseForTeacher(user, session.course_id);
+  const course = await courseForTeacher(user, session.course_id);
   if (!course) notFound();
 
-  const stats = att.sessionStats(session.id);
-  const records = att.sessionRecords(session.id);
-  const enrolled = db.prepare("SELECT COUNT(*) n FROM enrollments WHERE course_id = ? AND status = 'active'").get(session.course_id).n;
+  const stats = await att.sessionStats(session.id);
+  const records = await att.sessionRecords(session.id);
+  const enrolled = (await db.prepare("SELECT COUNT(*) n FROM enrollments WHERE course_id = ? AND status = 'active'").get(session.course_id)).n;
   const unmarked = Math.max(0, enrolled - stats.marked);
 
   return (

@@ -13,15 +13,15 @@ export const metadata = { title: "Attendance · Albasrawie" };
 
 const TONE = { present: "green", late: "amber", absent: "red", excused: "neutral" };
 
-export default function AttendanceLanding() {
-  const user = requireUser();
+export default async function AttendanceLanding() {
+  const user = await requireUser();
   return <Shell user={user}>{user.role === "student" ? <StudentLanding user={user} /> : <TeacherLanding user={user} />}</Shell>;
 }
 
-function StudentLanding({ user }) {
-  const summary = attendanceSummary(user.id);
-  const open = att.openSessionsForStudent(user.id);
-  const history = att.studentHistory(user.id).slice(0, 15);
+async function StudentLanding({ user }) {
+  const summary = await attendanceSummary(user.id);
+  const open = await att.openSessionsForStudent(user.id);
+  const history = (await att.studentHistory(user.id)).slice(0, 15);
 
   return (
     <>
@@ -88,12 +88,20 @@ function StudentLanding({ user }) {
   );
 }
 
-function TeacherLanding({ user }) {
+async function TeacherLanding({ user }) {
   const courses = user.role === "admin"
-    ? db.prepare(`
+    ? await db.prepare(`
         SELECT c.*, (SELECT COUNT(*) FROM enrollments e WHERE e.course_id = c.id AND e.status = 'active') AS student_count
         FROM courses c ORDER BY c.archived, c.created_at DESC`).all()
-    : teacherCourses(user.id);
+    : await teacherCourses(user.id);
+
+  const cards = [];
+  for (const c of courses) {
+    const open = await att.openSession(c.id);
+    const rate = await att.courseAttendanceRate(c.id);
+    const sessions = (await att.courseSessions(c.id)).length;
+    cards.push({ c, open, rate, sessions });
+  }
 
   return (
     <>
@@ -110,23 +118,23 @@ function TeacherLanding({ user }) {
         </Empty>
       ) : (
         <div className="grid-cards">
-          {courses.map((c) => {
-            const open = att.openSession(c.id);
-            const rate = att.courseAttendanceRate(c.id);
-            const sessions = att.courseSessions(c.id).length;
+          {cards.map((card) => {
+            const { c, open, rate, sessions } = card;
             return (
               <div key={c.id} className={`course-card ${c.archived ? "archived" : ""}`}>
-                <h3>{c.name}{c.archived ? " (archived)" : ""}</h3>
-                <p className="small muted">{c.student_count} student{c.student_count === 1 ? "" : "s"} · {sessions} session{sessions === 1 ? "" : "s"}</p>
-                <div className="chips">
-                  <Pill tone={rate === null ? "neutral" : rate >= 80 ? "green" : rate >= 60 ? "amber" : "red"}>
-                    {rate === null ? "no data" : `${Math.round(rate)}%`}
-                  </Pill>
-                  {open && <Pill tone="blue">open now</Pill>}
-                </div>
-                <div className="actions">
-                  <Link href={`/courses/${c.id}/attendance`} className="btn sm">{open ? "View open session" : "Start attendance"}</Link>
-                  <Link href={`/courses/${c.id}/attendance`} className="btn ghost sm">History</Link>
+                <div className="course-card-body">
+                  <h3>{c.name}{c.archived ? " (archived)" : ""}</h3>
+                  <p className="small muted">{c.student_count} student{c.student_count === 1 ? "" : "s"} · {sessions} session{sessions === 1 ? "" : "s"}</p>
+                  <div className="chips">
+                    <Pill tone={rate === null ? "neutral" : rate >= 80 ? "green" : rate >= 60 ? "amber" : "red"}>
+                      {rate === null ? "no data" : `${Math.round(rate)}%`}
+                    </Pill>
+                    {open && <Pill tone="blue">open now</Pill>}
+                  </div>
+                  <div className="actions">
+                    <Link href={`/courses/${c.id}/attendance`} className="btn sm">{open ? "View open session" : "Start attendance"}</Link>
+                    <Link href={`/courses/${c.id}/attendance`} className="btn ghost sm">History</Link>
+                  </div>
                 </div>
               </div>
             );

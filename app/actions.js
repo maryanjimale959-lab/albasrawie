@@ -3,8 +3,9 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db, audit } from "@/lib/db";
-import { hashPassword, verifyPassword, createSession, destroySession, requireUser } from "@/lib/auth";
+import { hashPassword, verifyPassword, createSession, destroySession, requireUser, homeFor } from "@/lib/auth";
 import * as courses from "@/lib/courses";
+import { notify } from "@/lib/notify";
 import { normalizeCode } from "@/lib/codes";
 
 const clean = (v) => (typeof v === "string" ? v.trim() : v);
@@ -41,20 +42,21 @@ export async function registerStudent(_prev, fd) {
   if (!r.success) return { error: firstError(r) };
   const d = r.data;
   const org = d.organization || "";
-  if (db.prepare("SELECT 1 FROM users WHERE email = ?").get(d.email)) return { error: "An account with this email already exists. Log in instead." };
-  if (db.prepare("SELECT 1 FROM student_profiles WHERE student_id = ? AND organization = ?").get(d.student_id, org))
+  if (await db.prepare("SELECT 1 FROM users WHERE email = ?").get(d.email)) return { error: "An account with this email already exists. Log in instead." };
+  if (await db.prepare("SELECT 1 FROM student_profiles WHERE student_id = ? AND organization = ?").get(d.student_id, org))
     return { error: "That student ID is already registered for this organization." };
-  const userId = db.transaction(() => {
-    const id = Number(db.prepare("INSERT INTO users (full_name, email, password_hash, role) VALUES (?,?,?,'student')")
-      .run(d.full_name, d.email, hashPassword(d.password)).lastInsertRowid);
-    db.prepare("INSERT INTO student_profiles (user_id, student_id, class_name, organization) VALUES (?,?,?,?)")
+  const userId = await db.transaction(async () => {
+    const info = await db.prepare("INSERT INTO users (full_name, email, password_hash, role) VALUES (?,?,?,'student')")
+      .run(d.full_name, d.email, hashPassword(d.password));
+    const id = Number(info.lastInsertRowid);
+    await db.prepare("INSERT INTO student_profiles (user_id, student_id, class_name, organization) VALUES (?,?,?,?)")
       .run(id, d.student_id, d.class_name, org);
-    audit(id, "user.register", `user:${id}`, { role: "student" });
+    await audit(id, "user.register", `user:${id}`, { role: "student" });
     return id;
   })();
-  createSession(userId);
+  await createSession(userId);
   if (d.course_code) {
-    const res = courses.enroll(userId, d.course_code);
+    const res = await courses.enroll(userId, d.course_code);
     if (res.ok) redirect(`/courses/${res.courseId}`);
     redirect(`/join?code=${encodeURIComponent(normalizeCode(d.course_code))}`);
   }
@@ -65,17 +67,23 @@ export async function registerTeacher(_prev, fd) {
   const r = teacherSchema.safeParse(obj(fd));
   if (!r.success) return { error: firstError(r) };
   const d = r.data;
-  if (db.prepare("SELECT 1 FROM users WHERE email = ?").get(d.email)) return { error: "An account with this email already exists. Log in instead." };
+  if (await db.prepare("SELECT 1 FROM users WHERE email = ?").get(d.email)) return { error: "An account with this email already exists. Log in instead." };
   const status = process.env.REQUIRE_TEACHER_VERIFICATION === "true" ? "pending" : "active";
-  const userId = db.transaction(() => {
-    const id = Number(db.prepare("INSERT INTO users (full_name, email, password_hash, role, status) VALUES (?,?,?,'teacher',?)")
-      .run(d.full_name, d.email, hashPassword(d.password), status).lastInsertRowid);
-    db.prepare("INSERT INTO teacher_profiles (user_id, bio, organization, department) VALUES (?,?,?,?)")
+  const userId = await db.transaction(async () => {
+    const info = await db.prepare("INSERT INTO users (full_name, email, password_hash, role, status) VALUES (?,?,?,'teacher',?)")
+      .run(d.full_name, d.email, hashPassword(d.password), status);
+    const id = Number(info.lastInsertRowid);
+    await db.prepare("INSERT INTO teacher_profiles (user_id, bio, organization, department) VALUES (?,?,?,?)")
       .run(id, d.bio, d.organization || null, d.department || null);
-    audit(id, "user.register", `user:${id}`, { role: "teacher", status });
+    await audit(id, "user.register", `user:${id}`, { role: "teacher", status });
     return id;
   })();
-  createSession(userId);
+  // An account that still needs approval is not signed in — it is waiting.
+  if (status !== "active") {
+    await notify(userId, "teacher_pending", "Your teacher account has been received and is waiting for the platform administrator to approve it.", null);
+    redirect("/login?pending=1");
+  }
+  await createSession(userId);
   redirect("/dashboard");
 }
 
@@ -89,23 +97,36 @@ function throttled(email) {
 }
 
 export async function login(_prev, fd) {
-  const { email = "", password = "", next = "" } = obj(fd);
+  const { email = "", password = "", next = "", as = "" } = obj(fd);
   const key = email.toLowerCase();
   if (throttled(key)) return { error: "Too many attempts. Wait 15 minutes and try again." };
-  const u = db.prepare("SELECT id, password_hash, status FROM users WHERE email = ?").get(email);
+  const u = await db.prepare("SELECT id, password_hash, status, role FROM users WHERE email = ?").get(email);
   if (!u || !verifyPassword(password, u.password_hash)) {
     attempts.get(key).push(Date.now());
     return { error: "The email or password is incorrect." };
   }
   if (u.status === "suspended") return { error: "This account is suspended. Contact the platform administrator." };
+  if (u.status === "pending") return { error: "This teacher account is waiting for approval from the platform administrator." };
+  /* A sign-in reached from a teacher page is for teachers. Checked only after
+     the password is right, so the page never confirms an email on its own. */
+  const wanted = ["student", "teacher"].includes(as) ? as : "";
+  if (wanted && u.role !== wanted && u.role !== "admin") {
+    return {
+      error: wanted === "teacher"
+        ? "That is a student account, so it cannot sign in from the teacher link. Use the student sign-in instead."
+        : "That is a teacher account. Teachers sign in from the link their administrator shared.",
+    };
+  }
   attempts.delete(key);
-  createSession(u.id);
-  audit(u.id, "user.login", `user:${u.id}`);
-  redirect(next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard");
+  await createSession(u.id);
+  await audit(u.id, "user.login", `user:${u.id}`);
+  /* Each role has its own home. An administrator goes straight to the console
+     instead of stopping at the dashboard and being bounced from there. */
+  redirect(next.startsWith("/") && !next.startsWith("//") ? next : homeFor(u.role));
 }
 
 export async function logout() {
-  destroySession();
+  await destroySession();
   redirect("/login");
 }
 
@@ -119,86 +140,95 @@ const courseSchema = z.object({
   visibility: z.enum(["private", "listed"]),
 });
 
-function requireActiveTeacher() {
-  const u = requireUser("teacher");
+async function requireActiveTeacher() {
+  const u = await requireUser("teacher");
   if (u.status !== "active") redirect("/dashboard");
   return u;
 }
 
 export async function createCourse(_prev, fd) {
-  const u = requireActiveTeacher();
+  const u = await requireActiveTeacher();
   const r = courseSchema.safeParse(obj(fd));
   if (!r.success) return { error: firstError(r) };
-  const id = courses.createCourse(u.id, r.data);
+  const id = await courses.createCourse(u.id, r.data);
   redirect(`/courses/${id}`);
 }
 
 const idOf = (fd) => Number(fd.get("course_id"));
 
 export async function regenerateCode(fd) {
-  const u = requireActiveTeacher();
-  courses.regenerateCode(u.id, idOf(fd));
+  const u = await requireActiveTeacher();
+  await courses.regenerateCode(u.id, idOf(fd));
   revalidatePath(`/courses/${idOf(fd)}`);
 }
 export async function disableCode(fd) {
-  const u = requireActiveTeacher();
-  courses.disableCode(u.id, idOf(fd));
+  const u = await requireActiveTeacher();
+  await courses.disableCode(u.id, idOf(fd));
   revalidatePath(`/courses/${idOf(fd)}`);
 }
 export async function toggleEnrollment(fd) {
-  const u = requireActiveTeacher();
-  courses.setEnrollmentOpen(u.id, idOf(fd), fd.get("open") === "1");
+  const u = await requireActiveTeacher();
+  await courses.setEnrollmentOpen(u.id, idOf(fd), fd.get("open") === "1");
   revalidatePath(`/courses/${idOf(fd)}`);
 }
 export async function toggleArchive(fd) {
-  const u = requireActiveTeacher();
-  courses.setArchived(u.id, idOf(fd), fd.get("archive") === "1");
+  const u = await requireActiveTeacher();
+  await courses.setArchived(u.id, idOf(fd), fd.get("archive") === "1");
   revalidatePath("/dashboard");
   revalidatePath(`/courses/${idOf(fd)}`);
 }
+export async function deleteCourse(fd) {
+  const u = await requireActiveTeacher();
+  const courseId = idOf(fd);
+  const res = await courses.deleteCourse(u.id, courseId);
+  if (res?.error) return { error: res.error };
+  revalidatePath("/dashboard");
+  revalidatePath("/courses");
+  redirect("/dashboard");
+}
 export async function removeStudent(fd) {
-  const u = requireActiveTeacher();
-  courses.removeStudent(u.id, idOf(fd), Number(fd.get("student_id")));
+  const u = await requireActiveTeacher();
+  await courses.removeStudent(u.id, idOf(fd), Number(fd.get("student_id")));
   revalidatePath(`/courses/${idOf(fd)}`);
 }
 
 export async function goToJoin(_prev, fd) {
-  requireUser("student");
+  await requireUser("student");
   const code = normalizeCode(fd.get("code"));
   if (!code) return { error: "Enter a course code." };
   redirect(`/join/${encodeURIComponent(code)}`);
 }
 
 export async function confirmJoin(_prev, fd) {
-  const u = requireUser("student");
-  const res = courses.enroll(u.id, fd.get("code"));
+  const u = await requireUser("student");
+  const res = await courses.enroll(u.id, fd.get("code"));
   if (res.ok || res.already) redirect(`/courses/${res.courseId}`);
   return { error: res.error };
 }
 
 export async function inviteStudent(_prev, fd) {
-  const u = requireActiveTeacher();
+  const u = await requireActiveTeacher();
   const courseId = Number(fd.get("course_id"));
-  const course = courses.ownedCourse(u.id, courseId);
+  const course = await courses.ownedCourse(u.id, courseId);
   if (!course) return { error: "Course not found." };
   const email = String(fd.get("email") || "").trim();
-  const student = db.prepare("SELECT id, full_name FROM users WHERE email = ? AND role = 'student'").get(email);
+  const student = await db.prepare("SELECT id, full_name FROM users WHERE email = ? AND role = 'student'").get(email);
   if (!student) return { error: "No student account uses that email. Share the code or link with them instead." };
-  const active = db.prepare("SELECT code FROM course_codes WHERE course_id = ? AND active = 1").get(courseId);
+  const active = await db.prepare("SELECT code FROM course_codes WHERE course_id = ? AND active = 1").get(courseId);
   if (!active) return { error: "This course has no active code. Generate a new code first." };
   if (!course.enrollment_open) return { error: "Enrollment is closed. Open it before inviting students." };
-  db.prepare("INSERT INTO notifications (user_id, type, message, link) VALUES (?,?,?,?)").run(
+  await db.prepare("INSERT INTO notifications (user_id, type, message, link) VALUES (?,?,?,?)").run(
     student.id, "invitation",
     `You have been invited to join ${course.name}. Enter course code ${active.code} to join.`,
     `/join/${active.code}`
   );
-  audit(u.id, "course.invite", `course:${courseId}`, { studentId: student.id });
+  await audit(u.id, "course.invite", `course:${courseId}`, { studentId: student.id });
   revalidatePath(`/courses/${courseId}`);
   return { error: null, sent: `Invitation sent to ${student.full_name} inside Albasrawie.` };
 }
 
 export async function markNotificationsRead() {
-  const u = requireUser();
-  db.prepare("UPDATE notifications SET read = 1 WHERE user_id = ?").run(u.id);
+  const u = await requireUser();
+  await db.prepare("UPDATE notifications SET `read` = 1 WHERE user_id = ?").run(u.id);
   revalidatePath("/notifications");
 }

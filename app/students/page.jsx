@@ -8,12 +8,12 @@ import { Avatar, Pill } from "@/components/ui";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Students · Albasrawie" };
 
-export default function StudentsPage({ searchParams }) {
-  const user = requireUser("teacher");
+export default async function StudentsPage({ searchParams }) {
+  const user = await requireUser("teacher");
   const q = (searchParams.q || "").toString().trim();
   const sort = ["attendance", "active", "name"].includes(searchParams.sort) ? searchParams.sort : "name";
 
-  const rows = db.prepare(`
+  const rows = (await db.prepare(`
     SELECT u.id, u.full_name, u.avatar_url, sp.student_id, sp.class_name,
       COUNT(DISTINCT e.course_id) AS courses,
       MAX(e.enrolled_at) AS last_join,
@@ -25,9 +25,9 @@ export default function StudentsPage({ searchParams }) {
     FROM enrollments e JOIN courses c ON c.id = e.course_id AND c.teacher_id = ?
     JOIN users u ON u.id = e.student_id AND e.status = 'active'
     LEFT JOIN student_profiles sp ON sp.user_id = u.id
-    GROUP BY u.id
+    GROUP BY u.id, u.full_name, u.avatar_url, sp.student_id, sp.class_name
     ${sort === "attendance" ? "ORDER BY att_rate IS NULL, att_rate ASC" : sort === "active" ? "ORDER BY activities DESC" : "ORDER BY u.full_name"}
-  `).all(user.id).filter((r) => !q || (r.full_name + " " + (r.student_id || "") + " " + (r.class_name || "")).toLowerCase().includes(q.toLowerCase()));
+  `).all(user.id)).filter((r) => !q || (r.full_name + " " + (r.student_id || "") + " " + (r.class_name || "")).toLowerCase().includes(q.toLowerCase()));
 
   return (
     <Shell user={user}>

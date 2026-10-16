@@ -6,7 +6,7 @@ import {
   PROJECT_STATUS_META, classProgress, doneMilestoneIds, getProject, projectMilestones,
   projectRoster, projectSubmissionFor,
 } from "@/lib/projects";
-import { dueLabel, fmtDate } from "@/lib/format";
+import { dueLabel, fmtDate, firstName } from "@/lib/format";
 import { submitProject, toggleMilestone, toggleProjectPublish } from "@/app/actions/projects";
 import { gradeProject } from "@/app/actions/grades";
 import Shell from "@/components/Shell";
@@ -30,27 +30,30 @@ const pillOf = (s) => {
 };
 const linksOf = (raw) => (raw || "").split(/[\s,]+/).filter((l) => /^https?:\/\//i.test(l));
 
-export default function ProjectPage({ params }) {
-  const user = requireUser();
-  const p = getProject(Number(params.id));
+export default async function ProjectPage({ params }) {
+  const user = await requireUser();
+  const p = await getProject(Number(params.id));
   if (!p) notFound();
 
   if (user.role === "student") {
-    const course = courseForStudent(user, p.course_id);
+    const course = await courseForStudent(user, p.course_id);
     if (!course || !p.published) notFound();
-    const milestones = projectMilestones(p.id);
+    const milestones = await projectMilestones(p.id);
+    const done = [...(await doneMilestoneIds(p.id, user.id))];
+    const sub = await projectSubmissionFor(p.id, user.id);
     return (
       <Shell user={user}>
         <StudentView p={p} course={course} milestones={milestones}
-          done={[...doneMilestoneIds(p.id, user.id)]}
-          sub={projectSubmissionFor(p.id, user.id)} />
+          done={done}
+          sub={sub} />
       </Shell>
     );
   }
 
-  const course = courseForTeacher(user, p.course_id);
+  const course = await courseForTeacher(user, p.course_id);
   if (!course) notFound();
-  return <Shell user={user}><TeacherView p={p} course={course} milestones={projectMilestones(p.id)} /></Shell>;
+  const milestones = await projectMilestones(p.id);
+  return <Shell user={user}><TeacherView p={p} course={course} milestones={milestones} /></Shell>;
 }
 
 function Head({ p, course, back }) {
@@ -95,6 +98,14 @@ function Brief({ p }) {
           </ul>
         </div>
       )}
+      {p.attachment_path && (
+        <div style={{ marginTop: "1rem", padding: "0.85rem", background: "var(--surface-2)", borderRadius: "var(--radius-sm, 8px)", border: "1px solid var(--line)" }}>
+          <h3 className="small" style={{ margin: "0 0 0.4rem" }}>Project Resources & Starter Files</h3>
+          <a href={`/api/f/${p.attachment_path}`} className="btn sm" download>
+            📥 Download {p.attachment_name || "Attachment"}
+          </a>
+        </div>
+      )}
       <p className="small muted">Created {fmtDate(p.created_at)} · set by {p.teacher_name}</p>
     </section>
   );
@@ -129,7 +140,7 @@ function MySubmission({ sub, p }) {
       ) : sub.status === "revision" && sub.feedback ? (
         <div className="alert info"><strong>Revision requested:</strong> {sub.feedback}</div>
       ) : (
-        <p className="small muted">Your mark appears here once {p.teacher_name.split(" ")[0]} releases it.</p>
+        <p className="small muted">Your mark appears here once {firstName(p.teacher_name)} releases it.</p>
       )}
     </section>
   );
@@ -232,9 +243,9 @@ function ReviewRow({ p, r }) {
   );
 }
 
-function TeacherView({ p, course, milestones }) {
-  const roster = projectRoster(p.id);
-  const cls = classProgress(p.id);
+async function TeacherView({ p, course, milestones }) {
+  const roster = await projectRoster(p.id);
+  const cls = await classProgress(p.id);
   const submitted = roster.filter((r) => r.submission_id);
   return (
     <>

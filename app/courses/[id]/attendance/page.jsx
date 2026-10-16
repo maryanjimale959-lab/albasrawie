@@ -20,19 +20,19 @@ export const metadata = { title: "Attendance · Albasrawie" };
 const TONE = { present: "green", late: "amber", absent: "red", excused: "neutral" };
 
 export default async function CourseAttendancePage({ params }) {
-  const user = requireUser();
+  const user = await requireUser();
   const id = Number(params.id);
 
   if (user.role === "student") {
-    const course = courseForStudent(user, id);
+    const course = await courseForStudent(user, id);
     if (!course) notFound();
     return <Shell user={user}><StudentAttendance course={course} user={user} /></Shell>;
   }
 
-  const course = courseForTeacher(user, id);
+  const course = await courseForTeacher(user, id);
   if (!course) notFound();
 
-  const open = att.openSession(course.id);
+  const open = await att.openSession(course.id);
   let qr = null;
   if (open && att.isAccepting(open)) {
     const origin = publicOrigin(headers());
@@ -58,11 +58,11 @@ function Head({ course, sub }) {
   );
 }
 
-function TeacherAttendance({ course, open, qr }) {
-  const sessions = att.courseSessions(course.id);
-  const rate = att.courseAttendanceRate(course.id);
-  const roster = open ? att.rosterForSession(open.id) : null;
-  const stats = open ? att.sessionStats(open.id) : null;
+async function TeacherAttendance({ course, open, qr }) {
+  const sessions = await att.courseSessions(course.id);
+  const rate = await att.courseAttendanceRate(course.id);
+  const roster = open ? await att.rosterForSession(open.id) : null;
+  const stats = open ? await att.sessionStats(open.id) : null;
   const accepting = open && att.isAccepting(open);
 
   return (
@@ -207,10 +207,10 @@ function TeacherAttendance({ course, open, qr }) {
   );
 }
 
-function StudentAttendance({ course, user }) {
-  const summary = attendanceSummary(user.id);
-  const openSessions = att.openSessionsForStudent(user.id).filter((s) => s.course_id === course.id);
-  const history = att.studentHistory(user.id);
+async function StudentAttendance({ course, user }) {
+  const summary = await attendanceSummary(user.id);
+  const openSessions = (await att.openSessionsForStudent(user.id)).filter((s) => s.course_id === course.id);
+  const history = await att.studentHistory(user.id);
 
   return (
     <>

@@ -12,6 +12,7 @@ import Shell from "@/components/Shell";
 import CourseTabs from "@/components/CourseTabs";
 import CopyButton from "@/components/CopyButton";
 import InviteForm from "@/components/InviteForm";
+import DeleteCourseButton from "@/components/DeleteCourseButton";
 import { StatCard, Pill, Avatar, Empty } from "@/components/ui";
 import CourseCover from "@/components/CourseCover";
 import { Reveal } from "@/components/motion";
@@ -20,15 +21,15 @@ import QRCode from "qrcode";
 
 export const dynamic = "force-dynamic";
 
-export default function CoursePage({ params }) {
-  const user = requireUser();
+export default async function CoursePage({ params }) {
+  const user = await requireUser();
   const id = Number(params.id);
   if (user.role === "student") {
-    const course = courseForStudent(user, id);
+    const course = await courseForStudent(user, id);
     if (!course) notFound();
     return <Shell user={user}><CourseTabs courseId={course.id} active="" /><StudentView user={user} course={course} /></Shell>;
   }
-  const course = courseForTeacher(user, id);
+  const course = await courseForTeacher(user, id);
   if (!course) notFound();
   return <Shell user={user}><CourseTabs courseId={course.id} active="" /><TeacherView user={user} course={course} /></Shell>;
 }
@@ -54,21 +55,21 @@ function Meta({ course }) {
   return bits.length ? <div className="chips" style={{ marginTop: "0.5rem" }}>{bits.map((b) => <span key={b} className="chip" style={{ background: "rgba(255,255,255,0.14)", borderColor: "rgba(255,255,255,0.22)", color: "#fff" }}>{b}</span>)}</div> : null;
 }
 
-function StudentView({ user, course }) {
-  const s = studentStats(user.id);
-  const { items } = upcomingWork(user.id);
+async function StudentView({ user, course }) {
+  const s = await studentStats(user.id);
+  const { items } = await upcomingWork(user.id);
   const courseItems = items.filter((w) => w.course_id === course.id);
-  const att = db.prepare(`
+  const att = await db.prepare(`
     SELECT COUNT(*) total, SUM(CASE WHEN r.status IN ('present','late') THEN 1 ELSE 0 END) here
     FROM attendance_records r JOIN attendance_sessions s ON s.id = r.session_id AND s.status = 'closed'
     WHERE r.student_id = ? AND s.course_id = ?`).get(user.id, course.id);
-  const ann = db.prepare("SELECT a.*, u.full_name t FROM announcements a JOIN users u ON u.id = a.teacher_id WHERE a.course_id = ? ORDER BY a.created_at DESC LIMIT 3").all(course.id);
-  const mats = db.prepare("SELECT * FROM materials WHERE course_id = ? AND published = 1 ORDER BY created_at DESC LIMIT 3").all(course.id);
-  const feed = activityFeed(user.id, 6).filter((a) => a.course_id === course.id);
-  const doneA = db.prepare(`SELECT COUNT(*) n FROM assignments a JOIN assignment_submissions s ON s.assignment_id = a.id AND s.student_id = ? WHERE a.course_id = ? AND a.published = 1`).get(user.id, course.id).n;
-  const totA = db.prepare("SELECT COUNT(*) n FROM assignments WHERE course_id = ? AND published = 1").get(course.id).n;
-  const doneP = db.prepare(`SELECT COUNT(*) n FROM projects p JOIN project_submissions s ON s.project_id = p.id AND s.student_id = ? AND s.status = 'completed' WHERE p.course_id = ?`).get(user.id, course.id).n;
-  const totP = db.prepare("SELECT COUNT(*) n FROM projects WHERE course_id = ? AND published = 1").get(course.id).n;
+  const ann = await db.prepare("SELECT a.*, u.full_name t FROM announcements a JOIN users u ON u.id = a.teacher_id WHERE a.course_id = ? ORDER BY a.created_at DESC LIMIT 3").all(course.id);
+  const mats = await db.prepare("SELECT * FROM materials WHERE course_id = ? AND published = 1 ORDER BY created_at DESC LIMIT 3").all(course.id);
+  const feed = (await activityFeed(user.id, 6)).filter((a) => a.course_id === course.id);
+  const doneA = (await db.prepare(`SELECT COUNT(*) n FROM assignments a JOIN assignment_submissions s ON s.assignment_id = a.id AND s.student_id = ? WHERE a.course_id = ? AND a.published = 1`).get(user.id, course.id)).n;
+  const totA = (await db.prepare("SELECT COUNT(*) n FROM assignments WHERE course_id = ? AND published = 1").get(course.id)).n;
+  const doneP = (await db.prepare(`SELECT COUNT(*) n FROM projects p JOIN project_submissions s ON s.project_id = p.id AND s.student_id = ? AND s.status = 'completed' WHERE p.course_id = ?`).get(user.id, course.id)).n;
+  const totP = (await db.prepare("SELECT COUNT(*) n FROM projects WHERE course_id = ? AND published = 1").get(course.id)).n;
 
   return (
     <>
@@ -158,30 +159,33 @@ function StudentView({ user, course }) {
 
 async function TeacherView({ user, course }) {
   const origin = publicOrigin(headers());
-  const active = db.prepare("SELECT code FROM course_codes WHERE course_id = ? AND active = 1").get(course.id);
+  const active = await db.prepare("SELECT code FROM course_codes WHERE course_id = ? AND active = 1").get(course.id);
   const code = active?.code;
   const link = code ? `${origin}/join/${code}` : null;
   const qr = link ? await QRCode.toDataURL(link, { width: 320, margin: 1 }) : null;
-  const roster = courseRoster(course.id);
+  const roster = await courseRoster(course.id);
   const invitation = code ? `You have been invited to join ${course.name}. Enter course code ${code} to join.` : null;
-  const totA = db.prepare("SELECT COUNT(*) n FROM assignments WHERE course_id = ?").get(course.id).n;
-  const totP = db.prepare("SELECT COUNT(*) n FROM projects WHERE course_id = ?").get(course.id).n;
-  const openSess = db.prepare("SELECT COUNT(*) n FROM attendance_sessions WHERE course_id = ? AND status = 'open'").get(course.id).n;
-  const pending = db.prepare(`
+  const totA = (await db.prepare("SELECT COUNT(*) n FROM assignments WHERE course_id = ?").get(course.id)).n;
+  const totP = (await db.prepare("SELECT COUNT(*) n FROM projects WHERE course_id = ?").get(course.id)).n;
+  const openSess = (await db.prepare("SELECT COUNT(*) n FROM attendance_sessions WHERE course_id = ? AND status = 'open'").get(course.id)).n;
+  const pending = (await db.prepare(`
     SELECT COUNT(*) n FROM assignment_submissions s JOIN assignments a ON a.id = s.assignment_id
-    WHERE a.course_id = ? AND s.status IN ('submitted','revision')`).get(course.id).n;
-  const recentAnn = db.prepare("SELECT * FROM announcements WHERE course_id = ? ORDER BY created_at DESC LIMIT 2").all(course.id);
+    WHERE a.course_id = ? AND s.status IN ('submitted','revision')`).get(course.id)).n;
+  const recentAnn = await db.prepare("SELECT * FROM announcements WHERE course_id = ? ORDER BY created_at DESC LIMIT 2").all(course.id);
 
   return (
     <>
       <CourseHero course={course} />
       <div className="page-head" style={{ marginTop: "-0.5rem" }}>
         <div />
-        <form action={toggleArchive}>
-          <input type="hidden" name="course_id" value={course.id} />
-          <input type="hidden" name="archive" value={course.archived ? "0" : "1"} />
-          <button className="btn ghost sm" type="submit">{course.archived ? "Restore course" : "Archive course"}</button>
-        </form>
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <form action={toggleArchive}>
+            <input type="hidden" name="course_id" value={course.id} />
+            <input type="hidden" name="archive" value={course.archived ? "0" : "1"} />
+            <button className="btn ghost sm" type="submit">{course.archived ? "Restore course" : "Archive course"}</button>
+          </form>
+          <DeleteCourseButton courseId={course.id} courseName={course.name} />
+        </div>
       </div>
 
       <div className="stat-grid">

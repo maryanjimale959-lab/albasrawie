@@ -5,10 +5,11 @@ import { getFile, uploadPath, canAccessFile } from "@/lib/storage";
 export const dynamic = "force-dynamic";
 
 export async function GET(_req, { params }) {
-  const user = getUser();
-  if (!user) return new Response("Sign in required", { status: 401 });
-  const row = getFile(Number(params.id));
-  if (!row || !canAccessFile(user, row)) return new Response("Not found", { status: 404 });
+  const row = await getFile(Number(params.id));
+  if (!row) return new Response("Not found", { status: 404 });
+  const user = await getUser();
+  if (row.kind !== "avatar" && !user) return new Response("Sign in required", { status: 401 });
+  if (!(await canAccessFile(user, row))) return new Response("Not found", { status: 404 });
   const p = uploadPath(row.stored_name);
   if (!fs.existsSync(p)) return new Response("File missing", { status: 410 });
   const buf = fs.readFileSync(p);

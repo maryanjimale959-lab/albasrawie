@@ -13,17 +13,17 @@ import { Avatar, Empty } from "@/components/ui";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Announcements · Albasrawie" };
 
-export default function AnnouncementsPage({ params }) {
-  const user = requireUser();
+export default async function AnnouncementsPage({ params }) {
+  const user = await requireUser();
   const id = Number(params.id);
 
   if (user.role === "student") {
-    const course = courseForStudent(user, id);
+    const course = await courseForStudent(user, id);
     if (!course) notFound();
     return <Shell user={user}><StudentFeed course={course} /></Shell>;
   }
 
-  const course = courseForTeacher(user, id);
+  const course = await courseForTeacher(user, id);
   if (!course) notFound();
   return <Shell user={user}><TeacherBoard course={course} /></Shell>;
 }
@@ -64,8 +64,8 @@ function AnnouncementCard({ a, canManage }) {
   );
 }
 
-function TeacherBoard({ course }) {
-  const mine = db.prepare(`
+async function TeacherBoard({ course }) {
+  const mine = await db.prepare(`
     SELECT a.*, u.full_name AS teacher_name FROM announcements a JOIN users u ON u.id = a.teacher_id
     WHERE a.course_id = ? ORDER BY a.created_at DESC`).all(course.id);
   return (
@@ -91,8 +91,8 @@ function TeacherBoard({ course }) {
   );
 }
 
-function StudentFeed({ course }) {
-  const feed = db.prepare(`
+async function StudentFeed({ course }) {
+  const feed = await db.prepare(`
     SELECT a.*, u.full_name AS teacher_name FROM announcements a JOIN users u ON u.id = a.teacher_id
     WHERE a.course_id = ? ORDER BY a.created_at DESC`).all(course.id);
   return (

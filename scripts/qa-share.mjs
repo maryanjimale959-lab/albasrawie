@@ -1,18 +1,17 @@
 // Verify invite code prefill, logged-in join, and LAN-aware share link + QR payload.
 import crypto from "crypto";
 import os from "os";
-import Database from "better-sqlite3";
+import { db, closeDb } from "../lib/db.js";
 import { chromium } from "playwright-core";
 
-const db = new Database("data/albasrawie.db");
-const tok = (email) => {
+const tok = async (email) => {
   const t = crypto.randomBytes(32).toString("base64url");
-  db.prepare("INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?,(SELECT id FROM users WHERE email=?),datetime('now','+1 day'))")
-    .run(crypto.createHash("sha256").update(t).digest("hex"), email);
+  await db.prepare("INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?,(SELECT id FROM users WHERE email=?),?)")
+    .run(crypto.createHash("sha256").update(t).digest("hex"), email, new Date(Date.now() + 864e5).toISOString());
   return t;
 };
-const student = tok("student1@demo.albasrawie.app");
-const teacher = tok("teacher@demo.albasrawie.app");
+const student = await tok("student1@demo.albasrawie.app");
+const teacher = await tok("teacher@demo.albasrawie.app");
 const ip = Object.values(os.networkInterfaces()).flat().find((i) => i && i.family === "IPv4" && !i.internal)?.address;
 console.log("LAN IP:", ip);
 
@@ -63,4 +62,5 @@ if (ip) {
 }
 
 await browser.close();
+await closeDb();
 console.log("done");

@@ -9,9 +9,9 @@ import { Empty } from "@/components/ui";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "New project · Albasrawie" };
 
-export default function NewProjectPage({ searchParams }) {
-  const user = requireUser("teacher");
-  const courses = teacherCourses(user.id).filter((c) => !c.archived);
+export default async function NewProjectPage({ searchParams }) {
+  const user = await requireUser("teacher");
+  const courses = (await teacherCourses(user.id)).filter((c) => !c.archived);
   const requested = searchParams.course ? Number(searchParams.course) : null;
   const preselected = courses.some((c) => c.id === requested) ? requested : (courses[0]?.id ?? null);
 
@@ -63,6 +63,9 @@ export default function NewProjectPage({ searchParams }) {
               <label>Rubric <span className="hint">optional</span><textarea name="rubric" rows="4" maxLength={4000} /></label>
               <label>Reference links <span className="hint">optional, one per line</span>
                 <textarea name="reference_links" rows="3" maxLength={2000} placeholder={"https://docs.python.org\nhttps://github.com/…"} />
+              </label>
+              <label>Project files & starter code <span className="hint">ZIP, archive, PDF, starter files or folders (up to 20MB)</span>
+                <input type="file" name="attachment" />
               </label>
               <hr style={{ border: 0, borderTop: "1px solid var(--line)" }} />
               <h3>Milestones</h3>

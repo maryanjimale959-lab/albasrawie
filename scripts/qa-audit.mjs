@@ -1,19 +1,18 @@
 // Deeper audit: element clips + in-page text/background contrast for the photo surfaces.
 import crypto from "crypto";
 import fs from "fs";
-import Database from "better-sqlite3";
+import { db, closeDb } from "../lib/db.js";
 import { chromium } from "playwright-core";
 
 const BASE = "http://localhost:3125";
-const db = new Database("data/albasrawie.db");
-const tok = (email) => {
+const tok = async (email) => {
   const t = crypto.randomBytes(32).toString("base64url");
-  db.prepare("INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?,(SELECT id FROM users WHERE email=?),datetime('now','+1 day'))")
-    .run(crypto.createHash("sha256").update(t).digest("hex"), email);
+  await db.prepare("INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?,(SELECT id FROM users WHERE email=?),?)")
+    .run(crypto.createHash("sha256").update(t).digest("hex"), email, new Date(Date.now() + 864e5).toISOString());
   return t;
 };
-const teacher = tok("teacher@demo.albasrawie.app");
-const student = tok("student1@demo.albasrawie.app");
+const teacher = await tok("teacher@demo.albasrawie.app");
+const student = await tok("student1@demo.albasrawie.app");
 
 const out = "qa4";
 fs.rmSync(out, { recursive: true, force: true });
@@ -57,4 +56,5 @@ await clip({ page: "/profile", sel: ".profile-hero" }, "hero-profile", { cookie:
 await clip({ page: "/join", sel: ".join-hero" }, "hero-join", { cookie: student });
 
 await browser.close();
+await closeDb();
 console.log("done");

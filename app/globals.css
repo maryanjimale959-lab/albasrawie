@@ -108,36 +108,37 @@ p { margin: 0; }
 .sidebar {
   position: fixed;
   inset: 0 auto 0 0;
-  width: 244px;
+  width: 256px;
   z-index: 40;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  padding: 1.25rem 0.85rem;
+  gap: 1rem;
+  padding: 1.5rem 1rem;
   background: var(--surface);
   border-right: 1px solid var(--line);
 }
-.side-brand { padding: 0 0.5rem 0.25rem; }
-.side-nav { display: grid; gap: 2px; flex: 1; overflow-y: auto; scrollbar-width: thin; }
+.side-brand { padding: 0 0.6rem 0.35rem; }
+.side-nav { display: grid; align-content: start; gap: 6px; flex: 1; overflow-y: auto; scrollbar-width: thin; }
 .nav-group-label {
   font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--muted);
-  padding: 0.8rem 0.75rem 0.3rem;
+  padding: 0.8rem 0.85rem 0.4rem;
 }
 .nav-item {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 0.7rem;
-  padding: 0.55rem 0.75rem;
+  gap: 0.75rem;
+  padding: 0.65rem 0.85rem;
   border-radius: var(--radius-sm);
   font-weight: 500;
   font-size: 0.92rem;
   color: var(--muted);
   text-decoration: none;
+  transition: all 0.15s ease;
 }
 .nav-item:hover { background: var(--surface-2); color: var(--ink); }
 .nav-item.active {
@@ -156,12 +157,12 @@ p { margin: 0; }
   background: var(--brand);
 }
 .nav-item svg { flex: none; opacity: 0.9; }
-.side-foot { display: grid; gap: 0.5rem; padding-top: 0.75rem; border-top: 1px solid var(--line); }
+.side-foot { display: grid; gap: 0.65rem; padding-top: 1rem; border-top: 1px solid var(--line); }
 .side-user {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
-  padding: 0.5rem 0.6rem;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
   border-radius: var(--radius-sm);
   text-decoration: none;
 }
@@ -173,7 +174,7 @@ p { margin: 0; }
 .main-col {
   flex: 1;
   min-width: 0;
-  margin-left: 244px;
+  margin-left: 256px;
   display: flex;
   flex-direction: column;
 }
@@ -372,6 +373,9 @@ p { margin: 0; }
 .btn[disabled] { opacity: 0.6; cursor: wait; }
 .btn.ghost { background: var(--surface); color: var(--ink); border-color: var(--line); }
 .btn.ghost:hover { background: var(--surface-2); }
+/* Translucent button for use on dark navy hero panels (profile / join). */
+.btn.on-navy { background: rgba(255, 255, 255, 0.14); color: #fff; border-color: rgba(255, 255, 255, 0.42); }
+.btn.on-navy:hover { background: rgba(255, 255, 255, 0.24); }
 .btn.danger { background: transparent; color: var(--danger); border-color: var(--danger); }
 .btn.sm { padding: 0.32rem 0.68rem; font-size: 0.85rem; }
 
@@ -771,8 +775,11 @@ th { color: var(--muted); font-weight: 700; font-size: 0.8rem; text-transform: u
 .profile-head .muted { color: rgba(255, 255, 255, 0.72); }
 .profile-stats { display: flex; gap: 1.75rem; flex-wrap: wrap; }
 .profile-stats div { display: grid; }
-.profile-stats b { font-size: 1.3rem; font-family: var(--font-display); }
-.profile-stats span { font-size: 0.8rem; color: rgba(255, 255, 255, 0.72); font-weight: 500; }
+.profile-stats b { font-size: 1.3rem; font-family: var(--font-display); color: var(--ink); }
+.profile-stats span { font-size: 0.8rem; color: var(--muted); font-weight: 500; }
+/* On the dark navy profile hero the same markup must stay light. */
+.profile-hero .profile-stats b { color: #fff; }
+.profile-hero .profile-stats span { color: rgba(255, 255, 255, 0.72); }
 
 /* Portfolio cards */
 .portfolio-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; }
@@ -859,18 +866,45 @@ th { color: var(--muted); font-weight: 700; font-size: 0.8rem; text-transform: u
 .toast-info { border-left-color: var(--accent); }
 
 /* Search box in topbar */
-.search-form { display: flex; align-items: center; }
+.search-form { display: flex; align-items: center; min-width: 0; }
 .search-form input {
-  width: 200px;
-  padding: 0.45rem 0.7rem 0.45rem 2.1rem;
-  font-size: 0.9rem;
+  width: 340px;
+  max-width: 100%;
+  padding: 0.68rem 1.05rem 0.68rem 2.4rem;
+  font-size: 0.95rem;
   border-radius: 99px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='%235f6672' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235f6672' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: 0.75rem center;
+  background-position: 0.9rem center;
   transition: width 0.25s var(--ease-out);
 }
-.search-form input:focus { width: 260px; }
+.search-form input:focus { width: 420px; }
+
+/* Account chip in topbar: avatar + name + role */
+.topbar-user {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.26rem 0.8rem 0.26rem 0.26rem;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  background: var(--surface-2);
+  color: var(--ink);
+  text-decoration: none;
+  max-width: 260px;
+  transition: background 0.2s var(--ease-out), border-color 0.2s var(--ease-out);
+}
+.topbar-user:hover { background: var(--surface); border-color: var(--brand); }
+.topbar-user .avatar { flex: none; }
+.topbar-user-meta { display: grid; gap: 1px; min-width: 0; line-height: 1.2; }
+.topbar-user-name {
+  font-weight: 600;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.topbar-user-role { font-size: 0.7rem; color: var(--muted); }
 
 /* Rich text-ish description blocks */
 .prose { white-space: pre-wrap; }
@@ -893,9 +927,14 @@ th { color: var(--muted); font-weight: 700; font-size: 0.8rem; text-transform: u
   .page { padding: 1.25rem 1rem 6.5rem; }
   .hero { padding: 1.5rem 1.3rem; }
   .stat-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
-  .search-form input { width: 130px; }
-  .search-form input:focus { width: 170px; }
+  .search-form { flex: 1; }
+  .search-form input { width: 100%; min-width: 0; }
+  .search-form input:focus { width: 100%; }
   .topbar-inner { padding: 0.5rem 1rem; }
+}
+@media (max-width: 900px) {
+  .topbar-user-meta { display: none; }
+  .topbar-user { padding: 0.26rem; gap: 0; }
 }
 
 /* ============================================================
@@ -991,13 +1030,13 @@ th { color: var(--ink); opacity: 0.72; }
   background:
     radial-gradient(80% 120% at 90% -20%, rgba(98, 176, 245, 0.18) 0%, transparent 55%),
     linear-gradient(115deg, rgba(6, 20, 38, 0.93) 0%, rgba(9, 35, 66, 0.85) 55%, rgba(13, 53, 98, 0.7) 100%),
-    url("/brand/scene-2.jpg") right center / cover no-repeat;
+    url("/brand/hero-class.jpg") right center / cover no-repeat;
 }
 :root[data-theme="dark"] .profile-hero {
   background:
     radial-gradient(80% 120% at 90% -20%, rgba(98, 176, 245, 0.14) 0%, transparent 55%),
     linear-gradient(115deg, rgba(4, 12, 22, 0.95) 0%, rgba(8, 28, 50, 0.9) 55%, rgba(11, 40, 70, 0.8) 100%),
-    url("/brand/scene-2.jpg") right center / cover no-repeat;
+    url("/brand/hero-class.jpg") right center / cover no-repeat;
 }
 
 .join-hero {
@@ -1027,4 +1066,145 @@ th { color: var(--ink); opacity: 0.72; }
   font-weight: 700;
   font-size: clamp(0.95rem, 2vw, 1.2rem);
   text-shadow: 0 1px 12px rgba(0, 0, 0, 0.55);
+}
+
+/* ============================================================
+   Phone width — wide tables become cards, tab bars wrap,
+   tap targets reach a comfortable size.
+   ============================================================ */
+@media (max-width: 720px) {
+  /* A seven-column table cannot be read at 390px. Each row becomes its own
+     card and every cell carries the label its column header used to hold,
+     so nothing needs to be scrolled sideways to be understood. */
+  .stack-cards { border: 0; border-radius: 0; box-shadow: none; background: none; overflow: visible; }
+  .stack-cards table { display: block; width: 100%; }
+  .stack-cards thead { display: none; }
+  .stack-cards tbody { display: grid; gap: 0.7rem; }
+  .stack-cards tr {
+    display: block;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    padding: 0.8rem 0.9rem;
+  }
+  .stack-cards td {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.9rem;
+    white-space: normal;
+    border-bottom: 0;
+    padding: 0.3rem 0;
+    text-align: right;
+  }
+  .stack-cards td::before {
+    content: attr(data-label);
+    flex: none;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-align: left;
+    padding-top: 0.15rem;
+  }
+  /* The person and the actions read better across the full width than a
+     label squeezed beside them. */
+  .stack-cards td:first-child,
+  .stack-cards td:last-child { display: block; text-align: left; }
+  .stack-cards td:first-child { padding-bottom: 0.6rem; margin-bottom: 0.25rem; border-bottom: 1px solid var(--line); }
+  .stack-cards td:last-child { padding-top: 0.65rem; margin-top: 0.3rem; border-top: 1px solid var(--line); }
+  .stack-cards td:first-child::before,
+  .stack-cards td:last-child::before { content: none; }
+  .stack-cards td > div { justify-content: flex-end; flex-wrap: wrap; row-gap: 0.45rem; }
+  .stack-cards td:first-child > div,
+  .stack-cards td:last-child > div { justify-content: flex-start; }
+  .stack-cards td form { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+  .stack-cards select { min-width: 0; flex: 1 1 130px; }
+  /* Names and links inside a card are tappable, not just readable. */
+  .stack-cards td a { display: inline-block; padding: 0.3rem 0; }
+
+  /* Tables that must keep their columns — live mark sheets and attendance grids
+     carry inputs across the row — swipe sideways instead. The first column stays
+     pinned so you always know whose row you are in, and the right edge fades to
+     hint that there is more to swipe. */
+  .table-wrap:not(.stack-cards) { position: relative; }
+  .table-wrap:not(.stack-cards)::after {
+    content: "";
+    position: absolute;
+    top: 0; right: 0; bottom: 0;
+    width: 28px;
+    pointer-events: none;
+    background: linear-gradient(to right, transparent, rgba(0, 0, 0, 0.12));
+    border-radius: 0 var(--radius) var(--radius) 0;
+  }
+  .table-wrap:not(.stack-cards) th:first-child,
+  .table-wrap:not(.stack-cards) td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--surface);
+  }
+  .table-wrap:not(.stack-cards) th:first-child { z-index: 2; }
+  .table-wrap:not(.stack-cards) td:first-child { box-shadow: inset -1px 0 0 var(--line); }
+
+  /* Four console tabs do not fit one scrolling line on a phone. */
+  .tabs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0; }
+  .tabs a { text-align: center; justify-content: center; padding: 0.7rem 0.45rem; font-size: 0.86rem; }
+
+  /* Thumb-sized targets. */
+  .btn.sm { display: inline-flex; align-items: center; justify-content: center; min-height: 38px; padding: 0.5rem 0.9rem; }
+  .seg a { min-height: 38px; display: flex; align-items: center; justify-content: center; }
+  .chips .btn { min-height: 38px; }
+
+  /* Keeps iOS from zooming the page when a field is focused. */
+  input, select, textarea { font-size: 16px; }
+  .table-wrap { -webkit-overflow-scrolling: touch; }
+}
+
+/* ============================================================
+   Phone width, second pass — the navy cards carry a brand photo
+   with a large wordmark in it. On a desktop that sits to the
+   right of the text; at 390px "cover" pulls it under the
+   headline, so the card reads as two layers of overlapping
+   type. Below 720px the photos step out and the plain navy
+   gradient is used instead.
+   ============================================================ */
+@media (max-width: 720px) {
+  .hero {
+    background:
+      radial-gradient(120% 140% at 92% -20%, rgba(98, 176, 245, 0.2) 0%, transparent 58%),
+      linear-gradient(115deg, #061a30 0%, #0a2b52 62%, #0e3866 100%);
+  }
+  :root[data-theme="dark"] .hero {
+    background:
+      radial-gradient(120% 140% at 92% -20%, rgba(98, 176, 245, 0.15) 0%, transparent 58%),
+      linear-gradient(115deg, #061420 0%, #0a2038 62%, #0d2b4a 100%);
+  }
+  .profile-hero,
+  .join-hero {
+    background:
+      radial-gradient(110% 130% at 92% -20%, rgba(98, 176, 245, 0.16) 0%, transparent 58%),
+      linear-gradient(115deg, #061a30 0%, #0a2b52 62%, #0e3866 100%);
+  }
+  :root[data-theme="dark"] .profile-hero {
+    background:
+      radial-gradient(110% 130% at 92% -20%, rgba(98, 176, 245, 0.12) 0%, transparent 58%),
+      linear-gradient(115deg, #061420 0%, #0a2038 62%, #0d2b4a 100%);
+  }
+
+  /* The hero stops being a two-column banner and reads top to bottom. */
+  .hero { padding: 1.4rem 1.15rem; }
+  .hero-grid { gap: 1.1rem; }
+  .hero-grid > div { min-width: 0; }
+  .hero-stats { width: 100%; gap: 0.6rem; }
+  .hero-chip { flex: 1 1 0; min-width: 0; padding: 0.6rem 0.7rem; }
+  .hero-actions .btn { flex: 1 1 auto; justify-content: center; }
+
+  /* Stat cards: two even columns instead of an auto-fill that can leave
+     one card stranded at a third of the width. */
+  .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.7rem; }
+  .stat-card { padding: 0.9rem 0.95rem; }
+
+  /* Two-column panels inside a page follow the same rule. */
+  .layout-2, .join-body { grid-template-columns: minmax(0, 1fr); }
 }

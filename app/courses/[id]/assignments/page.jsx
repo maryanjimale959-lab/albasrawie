@@ -9,10 +9,10 @@ import AssignmentList from "@/components/AssignmentList";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Course assignments · Albasrawie" };
 
-export default function CourseAssignmentsPage({ params, searchParams }) {
-  const user = requireUser();
+export default async function CourseAssignmentsPage({ params, searchParams }) {
+  const user = await requireUser();
   const id = Number(params.id);
-  const course = user.role === "student" ? courseForStudent(user, id) : courseForTeacher(user, id);
+  const course = user.role === "student" ? await courseForStudent(user, id) : await courseForTeacher(user, id);
   if (!course) notFound();
   const status = String(searchParams.status || "");
   const isStudent = user.role === "student";

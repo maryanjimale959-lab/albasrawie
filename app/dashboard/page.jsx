@@ -1,9 +1,10 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { teacherCourses, studentCourses } from "@/lib/courses";
 import { studentStats, heatmap, activityFeed, upcomingWork, weeklyActivity, activityLink, streaks } from "@/lib/activity";
-import { dueLabel, fmtDate } from "@/lib/format";
+import { dueLabel, fmtDate, firstName } from "@/lib/format";
 import { goToJoin } from "@/app/actions";
 import Shell from "@/components/Shell";
 import ActionForm from "@/components/ActionForm";
@@ -15,20 +16,23 @@ import { Reveal, CountUp } from "@/components/motion";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Dashboard · Albasrawie" };
 
-export default function Dashboard() {
-  const user = requireUser();
-  if (user.role === "admin") return <Shell user={user}><h1>Administrator</h1><p className="muted">Admin tools arrive in a later phase.</p></Shell>;
+export default async function Dashboard() {
+  const user = await requireUser();
+  /* An administrator has no classroom of their own to look at — their home is
+     the console. Any page that bounces a mismatched role back here lands them
+     where they actually work. */
+  if (user.role === "admin") redirect("/admin");
   return <Shell user={user}>{user.role === "teacher" ? <TeacherHome user={user} /> : <StudentHome user={user} />}</Shell>;
 }
 
-function StudentHome({ user }) {
-  const courses = studentCourses(user.id);
-  const sp = db.prepare("SELECT * FROM student_profiles WHERE user_id = ?").get(user.id);
-  const s = studentStats(user.id);
-  const cells = heatmap(user.id);
-  const feed = activityFeed(user.id, 10);
-  const { items, openSessions } = upcomingWork(user.id);
-  const weeks = weeklyActivity(user.id, 12);
+async function StudentHome({ user }) {
+  const courses = await studentCourses(user.id);
+  const sp = await db.prepare("SELECT * FROM student_profiles WHERE user_id = ?").get(user.id);
+  const s = await studentStats(user.id);
+  const cells = await heatmap(user.id);
+  const feed = await activityFeed(user.id, 10);
+  const { items, openSessions } = await upcomingWork(user.id);
+  const weeks = await weeklyActivity(user.id, 12);
   const att = s.attendance;
   const today = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
 
@@ -39,7 +43,7 @@ function StudentHome({ user }) {
         <div className="hero-grid">
           <div>
             <p className="hero-eyebrow"><span className="status-dot" /> {today}</p>
-            <h1>Welcome back, {user.full_name.split(" ")[0]}</h1>
+            <h1>Welcome back, {firstName(user.full_name)}</h1>
             <p className="hero-sub">
               {s.streak.current > 0
                 ? <>You&apos;re on a <strong>{s.streak.current}-day learning streak</strong> — {courses.length} active course{courses.length === 1 ? "" : "s"} keeping you moving.</>
@@ -214,53 +218,53 @@ function StudentHome({ user }) {
   );
 }
 
-function TeacherHome({ user }) {
-  const courses = teacherCourses(user.id);
+async function TeacherHome({ user }) {
+  const courses = await teacherCourses(user.id);
   const live = courses.filter((c) => !c.archived);
   if (user.status === "pending") {
     return (
       <>
-        <h1>Hi, {user.full_name.split(" ")[0]}</h1>
+        <h1>Hi, {firstName(user.full_name)}</h1>
         <div className="alert info">Your teacher account is waiting for approval by a platform administrator. You can create courses as soon as it&apos;s approved.</div>
       </>
     );
   }
   const ids = courses.map((c) => c.id);
   const inIds = ids.length ? `(${ids.join(",")})` : "(NULL)";
-  const q = (sql) => db.prepare(sql).get();
-  const pendingGrading = q(`SELECT COUNT(*) n FROM assignment_submissions s JOIN assignments a ON a.id = s.assignment_id WHERE a.course_id IN ${inIds} AND s.status IN ('submitted','revision')`).n
-    + q(`SELECT COUNT(*) n FROM project_submissions p JOIN projects pr ON pr.id = p.project_id WHERE pr.course_id IN ${inIds} AND p.status IN ('submitted','under_review')`).n;
-  const openSessions = q(`SELECT COUNT(*) n FROM attendance_sessions s WHERE s.course_id IN ${inIds} AND s.status = 'open'`).n;
-  const totalAssignments = q(`SELECT COUNT(*) n FROM assignments WHERE course_id IN ${inIds}`).n;
-  const totalProjects = q(`SELECT COUNT(*) n FROM projects WHERE course_id IN ${inIds}`).n;
+  const q = async (sql) => await db.prepare(sql).get();
+  const pendingGrading = (await q(`SELECT COUNT(*) n FROM assignment_submissions s JOIN assignments a ON a.id = s.assignment_id WHERE a.course_id IN ${inIds} AND s.status IN ('submitted','revision')`)).n
+    + (await q(`SELECT COUNT(*) n FROM project_submissions p JOIN projects pr ON pr.id = p.project_id WHERE pr.course_id IN ${inIds} AND p.status IN ('submitted','under_review')`)).n;
+  const openSessions = (await q(`SELECT COUNT(*) n FROM attendance_sessions s WHERE s.course_id IN ${inIds} AND s.status = 'open'`)).n;
+  const totalAssignments = (await q(`SELECT COUNT(*) n FROM assignments WHERE course_id IN ${inIds}`)).n;
+  const totalProjects = (await q(`SELECT COUNT(*) n FROM projects WHERE course_id IN ${inIds}`)).n;
   const totalStudents = live.reduce((n, c) => n + c.student_count, 0);
 
-  const recentSubs = db.prepare(`
+  const recentSubs = await db.prepare(`
     SELECT s.id, s.submitted_at, s.status, a.title, a.id AS aid, c.name AS course, u.full_name, u.id AS uid
     FROM assignment_submissions s JOIN assignments a ON a.id = s.assignment_id JOIN courses c ON c.id = a.course_id JOIN users u ON u.id = s.student_id
     WHERE a.course_id IN ${inIds} AND s.status IN ('submitted','revision') ORDER BY s.submitted_at DESC LIMIT 6`).all();
-  const dueSoon = db.prepare(`
+  const dueSoon = await db.prepare(`
     SELECT kind, id, title, course_name, due FROM (
       SELECT 'assignment' AS kind, a.id, a.title, c.name AS course_name, a.due_at AS due FROM assignments a JOIN courses c ON c.id = a.course_id
       WHERE a.course_id IN ${inIds} AND a.published = 1 AND a.due_at IS NOT NULL
       UNION ALL
       SELECT 'project' AS kind, p.id, p.title, c.name, p.deadline FROM projects p JOIN courses c ON c.id = p.course_id
-      WHERE p.course_id IN ${inIds} AND p.published = 1 AND p.deadline IS NOT NULL)
-    WHERE due > datetime('now') ORDER BY due ASC LIMIT 5`).all();
-  const missingStudents = db.prepare(`
+      WHERE p.course_id IN ${inIds} AND p.published = 1 AND p.deadline IS NOT NULL) AS upcoming
+    WHERE due > UTC_TIMESTAMP() ORDER BY due ASC LIMIT 5`).all();
+  const missingStudents = await db.prepare(`
     SELECT u.id, u.full_name, c.name AS course_name, COUNT(*) AS missing
     FROM assignments a JOIN courses c ON c.id = a.course_id
     JOIN enrollments e ON e.course_id = c.id AND e.status = 'active'
     JOIN users u ON u.id = e.student_id
-    WHERE a.course_id IN ${inIds} AND a.published = 1 AND a.due_at IS NOT NULL AND a.due_at < datetime('now')
+    WHERE a.course_id IN ${inIds} AND a.published = 1 AND a.due_at IS NOT NULL AND a.due_at < UTC_TIMESTAMP()
       AND NOT EXISTS (SELECT 1 FROM assignment_submissions s WHERE s.assignment_id = a.id AND s.student_id = u.id)
-    GROUP BY u.id, c.id ORDER BY missing DESC LIMIT 6`).all();
-  const lowAttendance = db.prepare(`
+    GROUP BY u.id, c.id, u.full_name, c.name ORDER BY missing DESC LIMIT 6`).all();
+  const lowAttendance = await db.prepare(`
     SELECT u.id, u.full_name, c.name AS course_name,
       ROUND(100.0 * SUM(CASE WHEN r.status IN ('present','late') THEN 1 ELSE 0 END) / COUNT(*)) AS rate
     FROM attendance_records r JOIN attendance_sessions s ON s.id = r.session_id AND s.status = 'closed'
     JOIN courses c ON c.id = s.course_id JOIN users u ON u.id = r.student_id
-    WHERE s.course_id IN ${inIds} GROUP BY u.id, c.id HAVING rate < 70 AND COUNT(*) >= 2 ORDER BY rate ASC LIMIT 5`).all();
+    WHERE s.course_id IN ${inIds} GROUP BY u.id, c.id, u.full_name, c.name HAVING rate < 70 AND COUNT(*) >= 2 ORDER BY rate ASC LIMIT 5`).all();
 
   return (
     <>
@@ -268,7 +272,7 @@ function TeacherHome({ user }) {
         <div className="hero-grid">
           <div>
             <p className="hero-eyebrow"><span className="status-dot" /> Teacher workspace</p>
-            <h1>Hi, {user.full_name.split(" ")[0]}</h1>
+            <h1>Hi, {firstName(user.full_name)}</h1>
             <p className="hero-sub">{live.length} active course{live.length === 1 ? "" : "s"} · {totalStudents} enrolled student{totalStudents === 1 ? "" : "s"} · {pendingGrading} submission{pendingGrading === 1 ? "" : "s"} waiting for review.</p>
             <div className="hero-actions">
               <Link href="/courses/new" className="btn" style={{ background: "#fff", color: "#1e1b4b" }}>Create a course</Link>
@@ -325,7 +329,7 @@ function TeacherHome({ user }) {
           <Reveal delay={80}>
             <section className="panel">
               <h2>Students missing work</h2>
-              {missingStudents.length === 0 ? <p className="muted small">Everyone has submitted their past-due work. Well done.</p> : (
+              {courses.length === 0 ? <p className="muted small">Nothing to check yet — this appears once a course has past-due work.</p> : missingStudents.length === 0 ? <p className="muted small">Everyone has submitted their past-due work. Well done.</p> : (
                 <div className="work-list">
                   {missingStudents.map((m) => (
                     <Link key={`${m.id}${m.course_name}`} href={`/students/${m.id}`} className="work-item">

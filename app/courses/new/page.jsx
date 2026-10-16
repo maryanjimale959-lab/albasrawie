@@ -6,8 +6,8 @@ import { redirect } from "next/navigation";
 
 export const metadata = { title: "Create a course · Albasrawie" };
 
-export default function NewCourse() {
-  const user = requireUser("teacher");
+export default async function NewCourse() {
+  const user = await requireUser("teacher");
   if (user.status !== "active") redirect("/dashboard");
   return (
     <Shell user={user}>

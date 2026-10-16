@@ -23,16 +23,17 @@ const TYPE_LABEL = {
   quiz_completed: "Quiz completed",
 };
 
-export default function ActivityPage({ searchParams }) {
-  const user = requireUser("student");
+export default async function ActivityPage({ searchParams }) {
+  const user = await requireUser("student");
   const day = /^\d{4}-\d{2}-\d{2}$/.test(searchParams.day || "") ? searchParams.day : null;
-  const cells = heatmap(user.id);
-  const st = streaks(user.id);
-  const courses = studentCourses(user.id);
-  const detail = day ? dayActivities(user.id, day) : [];
-  const recent = db.prepare(`
+  const cells = await heatmap(user.id);
+  const st = await streaks(user.id);
+  const courses = await studentCourses(user.id);
+  const detail = day ? await dayActivities(user.id, day) : [];
+  const recent = await db.prepare(`
     SELECT la.*, c.name AS course_name FROM learning_activities la LEFT JOIN courses c ON c.id = la.course_id
     WHERE la.student_id = ? ORDER BY la.activity_date DESC, la.created_at DESC LIMIT 40`).all(user.id);
+  const today = localDate(await tzOf(user.id));
 
   return (
     <Shell user={user}>
@@ -104,7 +105,7 @@ export default function ActivityPage({ searchParams }) {
           <section className="panel">
             <h2>Log learning outside Albasrawie</h2>
             <p className="small muted">Worked on a project at home or studied offline? Log it here. Self-reported entries are always labelled and never presented as verified work.</p>
-            <LogForm courses={courses} today={localDate(tzOf(user.id))} />
+            <LogForm courses={courses} today={today} />
           </section>
 
           <section className="panel">
@@ -141,8 +142,8 @@ function LogForm({ courses, today }) {
   );
 }
 
-function StudyLogs({ userId }) {
-  const rows = db.prepare(`
+async function StudyLogs({ userId }) {
+  const rows = await db.prepare(`
     SELECT sl.*, c.name AS course_name FROM study_logs sl LEFT JOIN courses c ON c.id = sl.course_id
     WHERE sl.student_id = ? ORDER BY sl.log_date DESC, sl.id DESC LIMIT 15`).all(userId);
   if (rows.length === 0) return <p className="muted small">No manual logs yet.</p>;

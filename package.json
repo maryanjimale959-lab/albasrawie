@@ -7,13 +7,16 @@
     "dev:local": "next dev",
     "dev:lan": "next dev -H 0.0.0.0",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -H 0.0.0.0",
     "seed": "node scripts/seed.mjs",
-    "seed:demo": "node scripts/demo-seed.mjs"
+    "seed:demo": "node scripts/demo-seed.mjs",
+    "migrate:mysql": "node scripts/migrate-to-mysql.mjs",
+    "test:roles": "node scripts/test-all-roles.mjs"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^12.11.1",
+    "mysql2": "^3.24.6",
     "next": "^14.2.35",
     "playwright-core": "^1.64.0",
     "qrcode": "^1.5.4",

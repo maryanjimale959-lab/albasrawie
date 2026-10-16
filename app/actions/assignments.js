@@ -34,8 +34,8 @@ const revalidateAssignment = (assignmentId, courseId) => {
 };
 
 const pickedTypes = (fd) => [...new Set([...fd.getAll("types")].map((t) => String(t).trim()))].filter((t) => TYPES.includes(t));
-const isActiveTeacher = () => {
-  const u = requireUser("teacher");
+const isActiveTeacher = async () => {
+  const u = await requireUser("teacher");
   if (u.status !== "active") redirect("/dashboard");
   return u;
 };
@@ -43,11 +43,11 @@ const isActiveTeacher = () => {
 /* ------------------------------ teacher ------------------------------ */
 
 export async function createAssignment(_prev, fd) {
-  const user = isActiveTeacher();
+  const user = await isActiveTeacher();
   const r = assignmentSchema.safeParse(obj(fd));
   if (!r.success) return { error: firstError(r) };
   const d = r.data;
-  const course = courseForTeacher(user, d.course_id);
+  const course = await courseForTeacher(user, d.course_id);
   if (!course) return { error: "Course not found. Pick one of the courses you teach." };
   if (course.archived) return { error: "This course is archived. Restore it before publishing new work." };
   const types = pickedTypes(fd);
@@ -64,29 +64,29 @@ export async function createAssignment(_prev, fd) {
   const due = toDbDateTime(d.due_at);
   if (d.due_at && !due) return { error: "The due date doesn't look right. Pick a date and time." };
 
-  const id = db.transaction(() => {
-    const info = db.prepare(`INSERT INTO assignments
+  const id = await db.transaction(async () => {
+    const info = await db.prepare(`INSERT INTO assignments
       (course_id, title, description, instructions, due_at, max_marks, allowed_types, rubric, attachment_path, attachment_name, published)
       VALUES (?,?,?,?,?,?,?,?,?,?,?)`)
       .run(course.id, d.title, d.description || null, d.instructions || null, due, d.max_marks,
         types.join(","), d.rubric || null, attachment.path, attachment.name, publish ? 1 : 0);
     const newId = Number(info.lastInsertRowid);
-    audit(user.id, "assignment.create", `assignment:${newId}`, { courseId: course.id, published: publish });
+    await audit(user.id, "assignment.create", `assignment:${newId}`, { courseId: course.id, published: publish });
     return newId;
   })();
 
-  if (publish) notifyCourse(course.id, "assignment", `New assignment: ${d.title}`, `/assignments/${id}`, { excludeUser: user.id });
+  if (publish) await notifyCourse(course.id, "assignment", `New assignment: ${d.title}`, `/assignments/${id}`, { excludeUser: user.id });
   revalidateAssignment(id, course.id);
   redirect(`/assignments/${id}`);
 }
 
 export async function updateAssignment(_prev, fd) {
-  const user = isActiveTeacher();
+  const user = await isActiveTeacher();
   const r = z.object({ assignment_id: z.coerce.number().int().positive() }).safeParse(obj(fd));
   if (!r.success) return { error: firstError(r) };
-  const a = getAssignment(r.data.assignment_id);
+  const a = await getAssignment(r.data.assignment_id);
   if (!a) return { error: "Assignment not found." };
-  if (!courseForTeacher(user, a.course_id)) return { error: "You can only edit assignments in your own courses." };
+  if (!(await courseForTeacher(user, a.course_id))) return { error: "You can only edit assignments in your own courses." };
   const d = assignmentSchema.safeParse({ ...obj(fd), course_id: a.course_id }).data;
   if (!d) return { error: "Check the title, due date and max marks." };
   const types = pickedTypes(fd);
@@ -94,22 +94,22 @@ export async function updateAssignment(_prev, fd) {
   const due = toDbDateTime(d.due_at);
   if (d.due_at && !due) return { error: "The due date doesn't look right. Pick a date and time." };
 
-  db.prepare(`UPDATE assignments SET title = ?, description = ?, instructions = ?, due_at = ?, max_marks = ?, allowed_types = ?, rubric = ? WHERE id = ?`)
+  await db.prepare(`UPDATE assignments SET title = ?, description = ?, instructions = ?, due_at = ?, max_marks = ?, allowed_types = ?, rubric = ? WHERE id = ?`)
     .run(d.title, d.description || null, d.instructions || null, due, d.max_marks, types.join(","), d.rubric || null, a.id);
-  audit(user.id, "assignment.update", `assignment:${a.id}`, { types, max_marks: d.max_marks });
+  await audit(user.id, "assignment.update", `assignment:${a.id}`, { types, max_marks: d.max_marks });
   revalidateAssignment(a.id, a.course_id);
   return { error: null, saved: "Assignment details saved." };
 }
 
 export async function toggleAssignmentPublish(fd) {
-  const user = isActiveTeacher();
+  const user = await isActiveTeacher();
   const id = Number(fd.get("assignment_id"));
-  const a = getAssignment(id);
-  if (!a || !courseForTeacher(user, a.course_id)) return;
+  const a = await getAssignment(id);
+  if (!a || !(await courseForTeacher(user, a.course_id))) return;
   const next = a.published ? 0 : 1;
-  db.prepare("UPDATE assignments SET published = ? WHERE id = ?").run(next, id);
-  audit(user.id, next ? "assignment.publish" : "assignment.unpublish", `assignment:${id}`);
-  if (next) notifyCourse(a.course_id, "assignment", `New assignment: ${a.title}`, `/assignments/${id}`, { excludeUser: user.id });
+  await db.prepare("UPDATE assignments SET published = ? WHERE id = ?").run(next, id);
+  await audit(user.id, next ? "assignment.publish" : "assignment.unpublish", `assignment:${id}`);
+  if (next) await notifyCourse(a.course_id, "assignment", `New assignment: ${a.title}`, `/assignments/${id}`, { excludeUser: user.id });
   revalidateAssignment(id, a.course_id);
 }
 
@@ -118,14 +118,14 @@ export async function toggleAssignmentPublish(fd) {
 const linkOk = (v) => /^https?:\/\/.+\..+/i.test(v);
 
 export async function submitAssignment(_prev, fd) {
-  const user = requireUser("student");
+  const user = await requireUser("student");
   const r = z.object({ assignment_id: z.coerce.number().int().positive() }).safeParse(obj(fd));
   if (!r.success) return { error: firstError(r) };
-  const a = getAssignment(r.data.assignment_id);
+  const a = await getAssignment(r.data.assignment_id);
   if (!a || !a.published) return { error: "This assignment isn't available any more." };
-  if (!courseForStudent(user, a.course_id)) return { error: "You're not enrolled in this course." };
+  if (!(await courseForStudent(user, a.course_id))) return { error: "You're not enrolled in this course." };
 
-  const existing = submissionFor(a.id, user.id);
+  const existing = await submissionFor(a.id, user.id);
   if (existing && existing.status !== "revision") {
     return { error: "Your work is with the teacher. You can hand in a new version once a revision is requested." };
   }
@@ -165,21 +165,21 @@ export async function submitAssignment(_prev, fd) {
     name: channel === "file" ? storedFile.name : null,
   };
 
-  db.transaction(() => {
+  await db.transaction(async () => {
     if (existing) {
-      db.prepare(`UPDATE assignment_submissions
+      await db.prepare(`UPDATE assignment_submissions
         SET content = ?, link = ?, file_path = ?, file_name = ?, status = ?, submitted_at = ?, grade_released = 0 WHERE id = ?`)
         .run(values.content, values.link, values.path, values.name, status, stamp, existing.id);
     } else {
-      db.prepare(`INSERT INTO assignment_submissions
+      await db.prepare(`INSERT INTO assignment_submissions
         (assignment_id, student_id, content, link, file_path, file_name, status, submitted_at) VALUES (?,?,?,?,?,?,?,?)`)
         .run(a.id, user.id, values.content, values.link, values.path, values.name, status, stamp);
     }
-    logActivity(user.id, {
+    await logActivity(user.id, {
       courseId: a.course_id, type: "assignment_submitted", relatedId: a.id, verification: "verified",
       description: `Submitted "${a.title}"`,
     });
-    audit(user.id, "assignment.submit", `assignment:${a.id}`, { status });
+    await audit(user.id, "assignment.submit", `assignment:${a.id}`, { status });
   })();
 
   revalidateAssignment(a.id, a.course_id);

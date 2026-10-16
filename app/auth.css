@@ -11,21 +11,11 @@
   font-family: var(--font);
 }
 
-/* Static scene: faint grid + two soft light pools (no animation) */
+/* Static scene: two soft light pools (no grid, no animation) */
 .auth-scene {
   position: fixed;
   inset: 0;
   pointer-events: none;
-}
-.auth-grid {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(to right, color-mix(in srgb, var(--ink) 4%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in srgb, var(--ink) 4%, transparent) 1px, transparent 1px);
-  background-size: 44px 44px;
-  mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, rgba(0, 0, 0, 0.9) 0%, transparent 75%);
-  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, rgba(0, 0, 0, 0.9) 0%, transparent 75%);
 }
 .auth-glow {
   position: absolute;
@@ -57,7 +47,7 @@
 .auth-card {
   position: relative;
   z-index: 2;
-  width: min(100%, 420px);
+  width: min(100%, 480px);
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 18px;
@@ -90,6 +80,16 @@
   line-height: 1.5;
 }
 
+.auth-card-foot {
+  display: grid;
+  gap: 0.45rem;
+  justify-items: center;
+  text-align: center;
+  border-top: 1px solid var(--line);
+  padding-top: 1.05rem;
+}
+.auth-card-foot .auth-foot-note { border-top: 0; padding-top: 0; }
+
 .auth-foot-note {
   text-align: center;
   font-size: 0.78rem;
@@ -98,15 +98,11 @@
   padding-top: 1rem;
 }
 
-.auth-page-foot {
-  position: fixed;
-  bottom: 1rem;
-  left: 0;
-  right: 0;
-  text-align: center;
+.auth-tagline {
+  margin: 0;
   font-size: 0.75rem;
   color: var(--muted);
-  z-index: 1;
+  letter-spacing: 0.01em;
 }
 
 /* =========================================================
@@ -132,6 +128,10 @@
   color: var(--danger);
   border: 1px solid color-mix(in srgb, var(--danger) 20%, transparent);
 }
+
+/* On the dark card the plain danger red sits too close to its own background for
+   a sentence you have to read — refusals and failed sign-ins stay legible here. */
+:root[data-theme="dark"] .auth-alert.error { color: #ffab9f; }
 
 .auth-field {
   display: flex;
@@ -166,11 +166,11 @@
 }
 .auth-input-element {
   width: 100%;
-  height: 46px;
+  height: 52px;
   padding: 0 2.5rem 0 2.6rem !important;
-  font-size: 0.925rem !important;
+  font-size: 0.975rem !important;
   font-family: inherit;
-  border-radius: 10px !important;
+  border-radius: 12px !important;
   border: 1px solid var(--line) !important;
   background: var(--surface) !important;
   color: var(--ink) !important;
@@ -203,18 +203,19 @@
 
 .auth-btn-primary {
   width: 100%;
-  height: 46px;
-  border-radius: 10px;
+  height: 52px;
+  border-radius: 12px;
   border: none;
   background: var(--brand);
   color: var(--brand-ink);
   font-family: inherit;
-  font-size: 0.95rem;
+  font-size: 0.975rem;
   font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  text-decoration: none;
   transition: background 0.15s ease, transform 0.1s ease;
 }
 .auth-btn-primary:hover:not([disabled]) { background: var(--brand-2); }
@@ -237,33 +238,42 @@
   color: var(--muted);
 }
 
-/* Segmented control (register page) */
-.seg {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  background: var(--surface-2);
-  border-radius: 12px;
-  padding: 4px;
-  border: 1px solid var(--line);
-}
-.seg a {
-  text-align: center;
-  padding: 0.5rem;
-  border-radius: 9px;
-  text-decoration: none;
-  font-weight: 600;
-  color: var(--muted);
-  transition: all 0.2s ease;
-}
-.seg a[aria-current="page"] {
-  background: var(--surface);
-  color: var(--ink);
-  box-shadow: var(--shadow-sm);
-}
-
 @media (max-width: 520px) {
   .auth-card { padding: 1.75rem 1.4rem 1.5rem; }
-  .auth-page-foot { display: none; }
+}
+
+/* ---------- Larger field targets inside the auth card ----------
+   The register form reuses the app's generic `label > input` styles, so its
+   sizing lives here rather than in globals.css (a global change would enlarge
+   every form in the product). Login's icon-prefixed inputs and both submit
+   buttons are raised to the same height so the two cards still match. */
+.auth-card label { gap: 0.4rem; font-size: 0.925rem; }
+
+.auth-card input:not(.auth-input-element),
+.auth-card select {
+  height: 52px;
+  padding: 0 1rem;
+  font-size: 0.975rem;
+  border-radius: 12px;
+  box-sizing: border-box;
+}
+.auth-card textarea {
+  min-height: 8.5rem;
+  padding: 0.9rem 1rem;
+  font-size: 0.975rem;
+  border-radius: 12px;
+}
+
+/* A wider card must not silently turn her stacked fields into two columns —
+   the register form is meant to read top-to-bottom. */
+.auth-card .row { grid-template-columns: 1fr; }
+
+.auth-card .btn {
+  height: 52px;
+  border-radius: 12px;
+  font-size: 0.975rem;
+  padding: 0 1rem;
+  box-sizing: border-box;
 }
 
 /* Branded photo backdrop behind the auth card */

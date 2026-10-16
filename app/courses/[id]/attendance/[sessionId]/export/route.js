@@ -10,16 +10,16 @@ const csvCell = (v) => {
 };
 
 export async function GET(_req, { params }) {
-  const user = getUser();
+  const user = await getUser();
   if (!user) return new Response("Sign in required", { status: 401 });
   if (user.role === "student") return new Response("Not found", { status: 404 });
 
-  const session = att.getSession(Number(params.sessionId));
+  const session = await att.getSession(Number(params.sessionId));
   if (!session || session.course_id !== Number(params.id)) return new Response("Not found", { status: 404 });
-  const course = courseForTeacher(user, session.course_id); // re-checks ownership server-side
+  const course = await courseForTeacher(user, session.course_id); // re-checks ownership server-side
   if (!course) return new Response("Not found", { status: 404 });
 
-  const rows = att.sessionRecords(session.id);
+  const rows = await att.sessionRecords(session.id);
   const lines = ["name,student_id,status,marked_at,method"];
   for (const r of rows) {
     lines.push([r.full_name, r.roll_no || "", r.status, r.marked_at, r.method].map(csvCell).join(","));

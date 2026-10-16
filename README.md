@@ -110,7 +110,3 @@ Visual QA: `node scripts/qa-shots.mjs` (needs the dev server running and Chrome 
 - Teacher analytics: submission rates, average grades, attendance, 12-week class activity, most active students, students who may need support
 - Search across everything the signed-in user is allowed to see, light and dark themes, responsive layout, audit log
 
-## Not configured
-
-- Email delivery (verification, password reset, external invitations): no email service is configured, and the UI says so instead of pretending
-- Quizzes: the activity system supports quiz records, but a quiz builder is not part of this version

@@ -110,3 +110,7 @@ Visual QA: `node scripts/qa-shots.mjs` (needs the dev server running and Chrome 
 - Teacher analytics: submission rates, average grades, attendance, 12-week class activity, most active students, students who may need support
 - Search across everything the signed-in user is allowed to see, light and dark themes, responsive layout, audit log
 
+
+## Author
+
+Built by [Maryan Xassan Jimcale](https://github.com/maryanjimale959-lab).

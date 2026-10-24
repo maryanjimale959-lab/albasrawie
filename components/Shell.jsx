@@ -5,6 +5,7 @@ import { Avatar } from "./ui";
 import { ToastProvider } from "./motion";
 import { SideNav, MobileTabs, Icon } from "./Nav";
 import SearchBox from "./SearchBox";
+import BuiltBy from "./BuiltBy";
 import { logout } from "@/app/actions";
 import { db } from "@/lib/db";
 
@@ -54,6 +55,7 @@ export default async function Shell({ user, children }) {
                 Log out
               </button>
             </form>
+            <BuiltBy variant="side" />
           </div>
         </aside>
 

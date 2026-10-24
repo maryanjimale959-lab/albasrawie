@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getUser } from "@/lib/auth";
 import { Logo } from "@/components/Logo";
 import ThemeToggle from "@/components/ThemeToggle";
+import BuiltBy from "@/components/BuiltBy";
 
 export const metadata = {
   title: "Albasrawie — Academic Learning Platform",
@@ -433,6 +434,7 @@ export default async function Home() {
           </div>
 
           <div className="l-foot-bottom">
+            <BuiltBy />
             <div className="l-foot-actions">
               <ThemeToggle />
               <a href="#top" className="foot-top">Back to top</a>

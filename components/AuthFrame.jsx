@@ -1,6 +1,7 @@
 "use client";
 import { Logo } from "./Logo";
 import ThemeToggle from "./ThemeToggle";
+import BuiltBy from "./BuiltBy";
 
 export default function AuthFrame({ title, subtitle, children, footer, tagline = "Albasrawie" }) {
   return (
@@ -28,6 +29,7 @@ export default function AuthFrame({ title, subtitle, children, footer, tagline =
         <div className="auth-card-foot">
           {footer && <p className="auth-foot-note">{footer}</p>}
           <p className="auth-tagline">{tagline}</p>
+          <BuiltBy variant="auth" />
         </div>
       </main>
     </div>

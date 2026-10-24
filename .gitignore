@@ -4,3 +4,4 @@ data/
 .env*.local
 *.log
 qa5/
+.video/

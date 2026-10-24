@@ -10,11 +10,14 @@ export const metadata = {
   description: "Courses, assignments, attendance and learning progress in one place.",
 };
 
-const themeScript = `try{var t=localStorage.getItem("albasrawie-theme");if(!t){t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.dataset.theme=t}catch(e){}`;
+// Dark is the house style, so anyone arriving without a saved choice gets dark.
+// A stored preference (light or dark) always wins, and this runs before first
+// paint so there is no flash of the light palette.
+const themeScript = `try{var t=localStorage.getItem("albasrawie-theme");if(t!=="light"&&t!=="dark"){t="dark"}document.documentElement.dataset.theme=t}catch(e){}`;
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" data-theme="dark" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />

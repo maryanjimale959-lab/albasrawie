@@ -2,8 +2,10 @@
 import { useEffect, useState } from "react";
 
 export default function ThemeToggle() {
-  const [theme, setTheme] = useState("light");
-  useEffect(() => { setTheme(document.documentElement.dataset.theme || "light"); }, []);
+  // Dark is the default theme, so assume it until the real value is read back
+  // from the document — that keeps the icon from flickering on first paint.
+  const [theme, setTheme] = useState("dark");
+  useEffect(() => { setTheme(document.documentElement.dataset.theme || "dark"); }, []);
   function toggle() {
     const next = theme === "dark" ? "light" : "dark";
     document.documentElement.dataset.theme = next;

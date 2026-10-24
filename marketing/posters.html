@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<title>Albasrawie — launch posters</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  /* Tokens lifted from the app itself so the poster and the product never drift. */
+  :root {
+    --navy: #071c33; --navy-deep: #04101f; --sky: #62b0f5; --sky-soft: #7fc1fe;
+    --ink: #eaf2fb; --muted: #9fb3c8; --line: rgba(159,179,200,0.22);
+    --g1: #16202c; --g2: #14301f; --g3: #1a4d2c; --g4: #26904e; --g5: #4ecb86;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Inter", "Segoe UI", sans-serif; color: var(--ink); overflow: hidden;
+    background:
+      radial-gradient(120% 85% at 82% 4%, rgba(98,176,245,0.22) 0%, rgba(98,176,245,0) 55%),
+      radial-gradient(95% 70% at 4% 100%, rgba(23,105,201,0.26) 0%, rgba(23,105,201,0) 62%),
+      linear-gradient(168deg, #0a2440 0%, var(--navy) 45%, var(--navy-deep) 100%);
+  }
+  .stage { display: flex; flex-direction: column; width: 100vw; height: 100vh; padding: var(--pad); gap: var(--gap); }
+  .brand img { display: block; height: var(--logo); width: auto; }
+  .rule { width: var(--rule-w, 120px); height: 5px; border-radius: 5px; background: var(--sky); }
+  h1 {
+    font-family: "Sora", sans-serif; font-weight: 800; margin: 0; color: var(--ink);
+    font-size: var(--h1); line-height: 1.03; letter-spacing: -0.032em; max-width: var(--h1-w);
+  }
+  h1 em { font-style: normal; color: var(--muted); }
+  .lede { margin: 0; color: var(--muted); font-size: var(--lede); line-height: 1.5; font-weight: 500; max-width: var(--lede-w); }
+  .chips { display: flex; flex-wrap: wrap; gap: var(--chip-gap); }
+  .chip {
+    border: 1px solid var(--line); background: rgba(255,255,255,0.05); border-radius: 999px;
+    padding: var(--chip-p); font-size: var(--chip-fs); font-weight: 700; white-space: nowrap;
+  }
+  .grid-wrap { display: grid; gap: 10px; }
+  .grid-label { font-size: var(--chip-fs); color: var(--muted); font-weight: 700; letter-spacing: 0.02em; }
+  svg.cells rect { rx: 3; }
+  .foot {
+    display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+    border-top: 1px solid var(--line); padding-top: var(--foot-p); font-size: var(--foot-fs);
+  }
+  .foot .who { font-weight: 700; white-space: nowrap; } .foot .who span { color: var(--muted); font-weight: 500; }
+  .foot .handle { color: var(--sky-soft); font-weight: 700; white-space: nowrap; }
+  .spacer { flex: 1; min-height: 0; }
+
+  /* ---- feed 4:5 ---- */
+  body[data-fmt="feed"] { --pad: 72px; --gap: 30px; --logo: 54px; --h1: 92px; --h1-w: 13ch; --lede: 30px; --lede-w: 26ch;
+    --chip-fs: 22px; --chip-p: 14px 26px; --chip-gap: 14px; --foot-p: 28px; --foot-fs: 25px; }
+  /* ---- story 9:16 ---- */
+  body[data-fmt="story"] { --pad: 88px; --gap: 34px; --logo: 62px; --h1: 116px; --h1-w: 11ch; --lede: 36px; --lede-w: 24ch;
+    --chip-fs: 26px; --chip-p: 17px 30px; --chip-gap: 16px; --foot-p: 34px; --foot-fs: 29px; }
+  /* Tall format: the credit stacks rather than squeezing both lines into 904px. */
+  body[data-fmt="story"] .foot { flex-direction: column; align-items: flex-start; gap: 10px; }
+  /* ---- linkedin banner ---- */
+  body[data-fmt="banner"] { --pad: 34px 56px 26px; --gap: 13px; --logo: 32px; --h1: 44px; --h1-w: 26ch; --lede: 19px; --lede-w: 44ch;
+    --chip-fs: 15px; --chip-p: 8px 16px; --chip-gap: 9px; --foot-p: 13px; --foot-fs: 16px; --rule-w: 62px; }
+  /* The banner is a three-row grid; the spacers used by the tall formats would
+     otherwise become grid items and shove the copy into the wrong column. */
+  body[data-fmt="banner"] .stage {
+    display: grid; grid-template-columns: 1.1fr 1fr; grid-template-rows: auto 1fr auto;
+    grid-template-areas: "brand brand" "copy visual" "foot foot";
+    column-gap: 58px; row-gap: 14px; align-items: center;
+  }
+  body[data-fmt="banner"] .spacer { display: none; }
+  body[data-fmt="banner"] .brand { grid-area: brand; }
+  body[data-fmt="banner"] .copy { grid-area: copy; }
+  body[data-fmt="banner"] .visual { grid-area: visual; }
+  body[data-fmt="banner"] .foot { grid-area: foot; }
+  body[data-fmt="banner"] .chips { margin-top: 4px; }
+  body[data-fmt="banner"] .visual { gap: 8px; }
+  body:not([data-fmt="banner"]) .copy { display: grid; gap: var(--gap); }
+  body:not([data-fmt="banner"]) .visual { display: grid; gap: 12px; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="brand"><img src="../public/brand/logo-dark.png" alt="Albasrawie" /></div>
+  <div class="spacer"></div>
+  <div class="copy">
+    <div class="rule"></div>
+    <h1>Every course, every deadline. <em>One place to keep them.</em></h1>
+    <p class="lede">Courses, assignments, attendance and progress — one calm workspace for teachers and students.</p>
+    <div class="chips">
+      <span class="chip">Courses</span><span class="chip">Coursework</span><span class="chip">Attendance</span><span class="chip">Grades</span><span class="chip">Progress</span>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="visual">
+    <div class="grid-label">A year of showing up</div>
+    <svg class="cells" id="heat" role="img" aria-label="Learning activity heatmap"></svg>
+  </div>
+  <div class="spacer"></div>
+  <div class="foot">
+    <div class="who"><span>Built by</span> Maryan Xassan Jimcale</div>
+    <div class="handle">github.com/maryanjimale959-lab</div>
+  </div>
+</div>
+<script>
+  const fmt = new URLSearchParams(location.search).get("fmt") || "feed";
+  document.body.dataset.fmt = fmt;
+
+  // Same five-step green scale the app's heatmap uses. The pattern is decorative:
+  // no counts, no dates, no claims about real users.
+  const CELL = { feed: 17, story: 16, banner: 9 }[fmt];
+  const GAP = Math.max(3, Math.round(CELL * 0.28));
+  const svg = document.getElementById("heat");
+  // Fill whatever column the format gives us instead of a fixed week count.
+  const avail = svg.parentElement.clientWidth || 900;
+  const weeks = Math.max(14, Math.floor((avail - GAP) / (CELL + GAP)));
+  let s = 7; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  const scale = ["var(--g1)", "var(--g2)", "var(--g3)", "var(--g4)", "var(--g5)"];
+  const W = weeks * (CELL + GAP), H = 7 * (CELL + GAP);
+  svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  let out = "";
+  for (let w = 0; w < weeks; w++) {
+    for (let d = 0; d < 7; d++) {
+      const recent = w / weeks;                       // denser toward "now"
+      const r = rnd() * (0.35 + recent * 0.9);
+      const lv = r > 0.86 ? 4 : r > 0.66 ? 3 : r > 0.44 ? 2 : r > 0.24 ? 1 : 0;
+      out += `<rect x="${w * (CELL + GAP)}" y="${d * (CELL + GAP)}" width="${CELL}" height="${CELL}" rx="${CELL * 0.28}" fill="${scale[lv]}"/>`;
+    }
+  }
+  svg.innerHTML = out;
+</script>
+</body>
+</html>

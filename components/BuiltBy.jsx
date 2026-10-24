@@ -2,13 +2,12 @@ const GITHUB = "https://github.com/maryanjimale959-lab";
 
 /**
  * Site credit: Maryan's name links to her GitHub profile.
- * Colours resolve through the landing page's --l-* tokens when present
- * (the footer sits on the cinematic palette) and fall back to the app
- * shell tokens everywhere else, so one component works on every surface.
+ * Shown once, in the landing page footer — she asked for the credit on the
+ * public welcome page only, not on the login screens or inside the app.
  */
-export default function BuiltBy({ variant = "inline" }) {
+export default function BuiltBy() {
   return (
-    <p className={`credit credit-${variant}`}>
+    <p className="credit">
       <span className="credit-label">Built by</span>
       <a href={GITHUB} target="_blank" rel="noopener noreferrer" className="credit-link">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

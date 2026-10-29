@@ -5,7 +5,7 @@ import { fmtDate, fmtDateTime } from "@/lib/format";
 import { Avatar, Pill, Empty } from "@/components/ui";
 import AdminTabs from "@/components/AdminTabs";
 import AdminCreateAccount from "@/components/AdminCreateAccount";
-import { approveTeacher, changeRole, restoreAccount, suspendAccount } from "@/app/admin/actions";
+import { approveAccount, changeRole, restoreAccount, suspendAccount } from "@/app/admin/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -154,7 +154,7 @@ export default async function AdminAccounts({ searchParams }) {
                           <span className="muted small">Your own account is changed in Settings.</span>
                         ) : r.status === "pending" ? (
                           <>
-                            <form action={approveTeacher}>
+                            <form action={approveAccount}>
                               <input type="hidden" name="user_id" value={r.id} />
                               <button className="btn sm" type="submit">Approve</button>
                             </form>

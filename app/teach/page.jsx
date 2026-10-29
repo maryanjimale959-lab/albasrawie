@@ -109,7 +109,6 @@ export default async function Teach() {
      treated as staff: they keep the teacher sign-up links, and the sign-up page
      itself is what tells them the link is not theirs. */
   const user = account && (account.role === "teacher" || account.role === "admin") ? account : null;
-  const approvalOn = process.env.REQUIRE_TEACHER_VERIFICATION === "true";
 
   return (
     <div className="landing">
@@ -243,9 +242,7 @@ export default async function Teach() {
               <span>Does my account open straight away?</span>
               <svg className="faq-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
             </summary>
-            <p>{approvalOn
-              ? "An administrator reviews teacher applications before the account opens, so you can teach a class without anyone else being able to create courses. You will see a note in the app while your application is with them."
-              : "Yes. Teacher accounts open as soon as they are created, and you can set up your first course immediately."}</p>
+            <p>No. You first confirm your email with a 6-digit code we send you, then an administrator reviews your application before the account opens, so nobody else can create courses. You can sign in as soon as it is approved.</p>
           </details>
           <details className="faq-item">
             <summary>

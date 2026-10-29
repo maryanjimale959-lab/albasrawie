@@ -28,7 +28,7 @@ export default async function LoginPage({ searchParams }) {
     >
       {waiting && (
         <div className="alert info" style={{ marginBottom: "1rem" }}>
-          Your teacher account has been received and is waiting for the platform administrator to approve it.
+          Your email is confirmed and your account is waiting for the platform administrator to approve it.
           You can log in as soon as it is approved.
         </div>
       )}

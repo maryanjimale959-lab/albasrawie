@@ -9,12 +9,12 @@ const TABS = [
 ];
 
 /**
- * The pending-teacher count travels with the bar itself, so every admin page
+ * The approval-queue count travels with the bar itself, so every admin page
  * shows the same queue number without each one repeating the query.
  */
 export default async function AdminTabs({ active = "" }) {
   const pending = Number(
-    (await db.prepare("SELECT COUNT(*) c FROM users WHERE role = 'teacher' AND status = 'pending'").get()).c
+    (await db.prepare("SELECT COUNT(*) c FROM users WHERE role IN ('student','teacher') AND status = 'pending' AND email_verified = 1").get()).c
   );
   return <Tabs
     active={`/admin${active ? `/${active}` : ""}`}

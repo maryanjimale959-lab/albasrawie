@@ -8,7 +8,7 @@ import { auditLabel, resolveTargets } from "@/lib/auditLabels";
 import { studentStats, activityFeed, upcomingWork } from "@/lib/activity";
 import { studentCourses } from "@/lib/courses";
 import AdminTabs from "@/components/AdminTabs";
-import { approveTeacher, changeRole, resetPassword, restoreAccount, suspendAccount } from "@/app/admin/actions";
+import { approveAccount, changeRole, resetPassword, restoreAccount, suspendAccount } from "@/app/admin/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -399,7 +399,7 @@ function ManagePanel({ me, acct }) {
               <h3 className="small" style={{ textTransform: "uppercase", letterSpacing: ".06em" }}>Standing</h3>
               <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap" }}>
                 {acct.status === "pending" && (
-                  <form action={approveTeacher}>
+                  <form action={approveAccount}>
                     <input type="hidden" name="user_id" value={acct.id} />
                     <input type="hidden" name="next" value={`accounts/${acct.id}`} />
                     <button className="btn sm" type="submit">Approve the application</button>

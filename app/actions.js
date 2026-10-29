@@ -7,6 +7,7 @@ import { hashPassword, verifyPassword, createSession, destroySession, requireUse
 import * as courses from "@/lib/courses";
 import { notify } from "@/lib/notify";
 import { normalizeCode } from "@/lib/codes";
+import { sendCode, checkCode, resendCode } from "@/lib/otp";
 
 const clean = (v) => (typeof v === "string" ? v.trim() : v);
 const obj = (fd) => Object.fromEntries([...fd.entries()].map(([k, v]) => [k, clean(v)]));
@@ -45,22 +46,24 @@ export async function registerStudent(_prev, fd) {
   if (await db.prepare("SELECT 1 FROM users WHERE email = ?").get(d.email)) return { error: "An account with this email already exists. Log in instead." };
   if (await db.prepare("SELECT 1 FROM student_profiles WHERE student_id = ? AND organization = ?").get(d.student_id, org))
     return { error: "That student ID is already registered for this organization." };
+  /* Every new account confirms its email and then waits for the administrator.
+     A course code given here is kept and used when the account is approved. */
   const userId = await db.transaction(async () => {
-    const info = await db.prepare("INSERT INTO users (full_name, email, password_hash, role) VALUES (?,?,?,'student')")
+    const info = await db.prepare("INSERT INTO users (full_name, email, password_hash, role, status, email_verified) VALUES (?,?,?,'student','pending',0)")
       .run(d.full_name, d.email, hashPassword(d.password));
     const id = Number(info.lastInsertRowid);
-    await db.prepare("INSERT INTO student_profiles (user_id, student_id, class_name, organization) VALUES (?,?,?,?)")
-      .run(id, d.student_id, d.class_name, org);
-    await audit(id, "user.register", `user:${id}`, { role: "student" });
+    await db.prepare("INSERT INTO student_profiles (user_id, student_id, class_name, organization, pending_course_code) VALUES (?,?,?,?,?)")
+      .run(id, d.student_id, d.class_name, org, d.course_code ? normalizeCode(d.course_code) || null : null);
+    await audit(id, "user.register", `user:${id}`, { role: "student", status: "pending" });
     return id;
   })();
-  await createSession(userId);
-  if (d.course_code) {
-    const res = await courses.enroll(userId, d.course_code);
-    if (res.ok) redirect(`/courses/${res.courseId}`);
-    redirect(`/join?code=${encodeURIComponent(normalizeCode(d.course_code))}`);
-  }
-  redirect("/dashboard");
+  await toVerify({ id: userId, email: d.email, full_name: d.full_name });
+}
+
+/** Emails a sign-up code and moves the browser to /verify; a failed send is said there. */
+async function toVerify(user) {
+  const sent = await sendCode(user);
+  redirect(sent.error ? "/verify?failed=1" : "/verify");
 }
 
 export async function registerTeacher(_prev, fd) {
@@ -68,23 +71,36 @@ export async function registerTeacher(_prev, fd) {
   if (!r.success) return { error: firstError(r) };
   const d = r.data;
   if (await db.prepare("SELECT 1 FROM users WHERE email = ?").get(d.email)) return { error: "An account with this email already exists. Log in instead." };
-  const status = process.env.REQUIRE_TEACHER_VERIFICATION === "true" ? "pending" : "active";
   const userId = await db.transaction(async () => {
-    const info = await db.prepare("INSERT INTO users (full_name, email, password_hash, role, status) VALUES (?,?,?,'teacher',?)")
-      .run(d.full_name, d.email, hashPassword(d.password), status);
+    const info = await db.prepare("INSERT INTO users (full_name, email, password_hash, role, status, email_verified) VALUES (?,?,?,'teacher','pending',0)")
+      .run(d.full_name, d.email, hashPassword(d.password));
     const id = Number(info.lastInsertRowid);
     await db.prepare("INSERT INTO teacher_profiles (user_id, bio, organization, department) VALUES (?,?,?,?)")
       .run(id, d.bio, d.organization || null, d.department || null);
-    await audit(id, "user.register", `user:${id}`, { role: "teacher", status });
+    await audit(id, "user.register", `user:${id}`, { role: "teacher", status: "pending" });
     return id;
   })();
-  // An account that still needs approval is not signed in — it is waiting.
-  if (status !== "active") {
-    await notify(userId, "teacher_pending", "Your teacher account has been received and is waiting for the platform administrator to approve it.", null);
-    redirect("/login?pending=1");
-  }
-  await createSession(userId);
-  redirect("/dashboard");
+  await toVerify({ id: userId, email: d.email, full_name: d.full_name });
+}
+
+/* ------------------------------------------------------------------ *
+ * Sign-up email codes (/verify)
+ * ------------------------------------------------------------------ */
+
+export async function verifyEmail(_prev, fd) {
+  const res = await checkCode(fd.get("code"));
+  if (res.error) return { error: res.error };
+  const u = await db.prepare("SELECT id, full_name, role FROM users WHERE id = ?").get(res.userId);
+  await audit(u.id, "user.email_verified", `user:${u.id}`);
+  /* The account is now in the administrator's queue; tell every active admin. */
+  const admins = await db.prepare("SELECT id FROM users WHERE role = 'admin' AND status = 'active'").all();
+  await notify(admins.map((a) => a.id), "account_waiting", `${u.full_name} (${u.role}) confirmed their email and is waiting for your approval.`, "/admin#waiting");
+  await notify(u.id, "account_pending", "Your email is confirmed. Your account is waiting for the platform administrator to approve it.", null);
+  redirect("/login?pending=1");
+}
+
+export async function resendEmailCode() {
+  return await resendCode();
 }
 
 // Simple in-memory throttle: 8 failed attempts per email per 15 minutes.
@@ -100,13 +116,19 @@ export async function login(_prev, fd) {
   const { email = "", password = "", next = "", as = "" } = obj(fd);
   const key = email.toLowerCase();
   if (throttled(key)) return { error: "Too many attempts. Wait 15 minutes and try again." };
-  const u = await db.prepare("SELECT id, password_hash, status, role FROM users WHERE email = ?").get(email);
+  const u = await db.prepare("SELECT id, full_name, email, password_hash, status, role, email_verified FROM users WHERE email = ?").get(email);
   if (!u || !verifyPassword(password, u.password_hash)) {
     attempts.get(key).push(Date.now());
     return { error: "The email or password is incorrect." };
   }
   if (u.status === "suspended") return { error: "This account is suspended. Contact the platform administrator." };
-  if (u.status === "pending") return { error: "This teacher account is waiting for approval from the platform administrator." };
+  /* A sign-up that never entered its code picks up where it stopped: a new code
+     is sent and the browser goes back to /verify. */
+  if (Number(u.email_verified) === 0) {
+    attempts.delete(key);
+    await toVerify({ id: u.id, email: u.email, full_name: u.full_name });
+  }
+  if (u.status === "pending") return { error: "This account is waiting for approval from the platform administrator. You can sign in as soon as it is approved." };
   /* A sign-in reached from a teacher page is for teachers. Checked only after
      the password is right, so the page never confirms an email on its own. */
   const wanted = ["student", "teacher"].includes(as) ? as : "";

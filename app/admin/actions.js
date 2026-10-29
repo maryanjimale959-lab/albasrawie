@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db, audit } from "@/lib/db";
 import { getUser, hashPassword } from "@/lib/auth";
 import { notify } from "@/lib/notify";
+import * as courses from "@/lib/courses";
 
 /* Every action here re-checks the role on the server: the /admin pages are
    guarded too, but a form POST must never trust the page that rendered it. */
@@ -36,7 +37,7 @@ async function activeAdmins(exceptId = 0) {
 
 async function target(userId) {
   return await db
-    .prepare("SELECT id, full_name, email, role, status FROM users WHERE id = ?")
+    .prepare("SELECT id, full_name, email, role, status, email_verified FROM users WHERE id = ?")
     .get(userId);
 }
 
@@ -50,36 +51,52 @@ async function guardedActor(admin, userId) {
 }
 
 /* ------------------------------------------------------------------ *
- * Teacher approval queue
+ * Approval queue — every new student and teacher account waits here once
+ * it has confirmed its email.
  * ------------------------------------------------------------------ */
 
-export async function approveTeacher(fd) {
+const waitsForApproval = (t) => ["student", "teacher"].includes(t.role) && t.status === "pending";
+
+export async function approveAccount(fd) {
   const admin = await requireAdmin();
   const userId = idOf(fd);
   const check = await guardedActor(admin, userId);
   if (check.error) back(cameFrom(fd, ""), check.error);
   const t = check.t;
-  if (t.role !== "teacher" || t.status !== "pending")
+  if (!waitsForApproval(t))
     back(cameFrom(fd, ""), `${t.full_name} is not waiting for approval.`);
+  if (Number(t.email_verified) === 0)
+    back(cameFrom(fd, ""), `${t.full_name} has not confirmed their email yet, so they cannot be approved.`);
 
+  const profile = t.role === "student"
+    ? await db.prepare("SELECT pending_course_code FROM student_profiles WHERE user_id = ?").get(t.id)
+    : null;
   await db.transaction(async () => {
     await db.prepare("UPDATE users SET status = 'active' WHERE id = ?").run(t.id);
-    await notify(t.id, "teacher_approved", "Your teacher account has been approved. You can create your first course now.", "/courses/new");
-    await audit(admin.id, "admin.teacher_approved", `user:${t.id}`, { email: t.email });
+    if (t.role === "teacher")
+      await notify(t.id, "teacher_approved", "Your teacher account has been approved. You can create your first course now.", "/courses/new");
+    else
+      await notify(t.id, "student_approved", "Your student account has been approved. Join a course with the code your teacher gave you.", "/join");
+    await audit(admin.id, t.role === "teacher" ? "admin.teacher_approved" : "admin.student_approved", `user:${t.id}`, { email: t.email });
   })();
+  /* The course code a student gave at sign-up is used now that they can study. */
+  if (profile?.pending_course_code) {
+    await courses.enroll(t.id, profile.pending_course_code).catch((e) => console.error("[approve] enroll failed:", e.message));
+    await db.prepare("UPDATE student_profiles SET pending_course_code = NULL WHERE user_id = ?").run(t.id);
+  }
   revalidatePath("/admin");
   revalidatePath("/admin/accounts");
   back(cameFrom(fd, ""), `Approved ${t.full_name}. They have been notified in the app.`);
 }
 
-export async function rejectTeacher(fd) {
+export async function rejectAccount(fd) {
   const admin = await requireAdmin();
   const userId = idOf(fd);
   const reason = String(fd.get("reason") || "").trim().slice(0, 300);
   const check = await guardedActor(admin, userId);
   if (check.error) back(cameFrom(fd, ""), check.error);
   const t = check.t;
-  if (t.role !== "teacher" || t.status !== "pending")
+  if (!waitsForApproval(t))
     back(cameFrom(fd, ""), `${t.full_name} is not waiting for approval.`);
 
   await db.transaction(async () => {
@@ -90,13 +107,13 @@ export async function rejectTeacher(fd) {
     await db.prepare("DELETE FROM sessions WHERE user_id = ?").run(t.id);
     await notify(
       t.id,
-      "teacher_rejected",
+      `${t.role}_rejected`,
       reason
-        ? `Your teacher account was not approved: ${reason}`
-        : "Your teacher account was not approved. Reply to whoever shared the sign-up link with you.",
+        ? `Your ${t.role} account was not approved: ${reason}`
+        : `Your ${t.role} account was not approved. Reply to whoever shared the sign-up link with you.`,
       "/login"
     );
-    await audit(admin.id, "admin.teacher_rejected", `user:${t.id}`, { email: t.email, reason: reason || null });
+    await audit(admin.id, `admin.${t.role}_rejected`, `user:${t.id}`, { email: t.email, reason: reason || null });
   })();
   revalidatePath("/admin");
   revalidatePath("/admin/accounts");

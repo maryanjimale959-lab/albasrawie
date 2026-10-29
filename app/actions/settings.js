@@ -3,7 +3,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db, audit } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { saveUpload } from "@/lib/storage";
+import fs from "fs";
+import { saveUpload, getFile, uploadPath } from "@/lib/storage";
 
 const clean = (v) => (typeof v === "string" ? v.trim() : v);
 const obj = (fd) => Object.fromEntries([...fd.entries()].map(([k, v]) => [k, clean(v)]));
@@ -66,6 +67,24 @@ export async function uploadAvatar(_prev, fd) {
   revalidatePath("/dashboard");
   revalidatePath("/profile");
   return { error: null, ok: "Profile picture updated." };
+}
+
+/** Goes back to the initials avatar; the stored image file is deleted too. */
+export async function removeAvatar() {
+  const user = await requireUser();
+  const fileId = Number(String(user.avatar_url || "").match(/^\/api\/f\/(\d+)$/)?.[1] || 0);
+  await db.prepare("UPDATE users SET avatar_url = NULL WHERE id = ?").run(user.id);
+  if (fileId) {
+    const row = await getFile(fileId);
+    if (row && row.owner_id === user.id && row.kind === "avatar") {
+      await db.prepare("DELETE FROM files WHERE id = ?").run(row.id);
+      fs.rm(uploadPath(row.stored_name), { force: true }, () => {});
+    }
+  }
+  revalidatePath("/settings");
+  revalidatePath("/dashboard");
+  revalidatePath("/profile");
+  return { error: null, ok: "Profile picture removed." };
 }
 
 export async function requestPasswordChange(_prev, fd) {

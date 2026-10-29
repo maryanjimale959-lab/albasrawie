@@ -1441,4 +1441,13 @@
   .l-foot-actions { margin-left: 0; }
   .l-section { padding: 3.5rem 1.25rem; }
   .l-hero { padding: 3.5rem 1.25rem 4rem; }
+  /* The header keeps the same side gutter as the sections below it. */
+  .landing-nav-inner { padding: 0.75rem 1.25rem; gap: 0.75rem; }
+  .landing-actions { gap: 0.5rem; }
+}
+
+/* A 375px phone cannot fit the logo, the theme toggle and both buttons on one
+   row; the footer carries the same toggle, so the header lets it go. */
+@media (max-width: 420px) {
+  .landing-actions .icon-btn { display: none; }
 }

@@ -3,6 +3,7 @@ import { getUser } from "@/lib/auth";
 import { firstName } from "@/lib/format";
 import { Logo } from "@/components/Logo";
 import ThemeToggle from "@/components/ThemeToggle";
+import BuiltBy from "@/components/BuiltBy";
 
 export const metadata = {
   title: "Teach with Albasrawie",
@@ -332,6 +333,7 @@ export default async function Teach() {
           </div>
 
           <div className="l-foot-bottom">
+            <BuiltBy />
             <div className="l-foot-actions">
               <ThemeToggle />
               <a href="#top" className="foot-top">Back to top</a>

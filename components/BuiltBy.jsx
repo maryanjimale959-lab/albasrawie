@@ -2,8 +2,8 @@ const GITHUB = "https://github.com/maryanjimale959-lab";
 
 /**
  * Site credit: Maryan's name links to her GitHub profile.
- * Shown once, in the landing page footer — she asked for the credit on the
- * public welcome page only, not on the login screens or inside the app.
+ * Shown in the footers of the two welcome pages — the student landing page and
+ * the teacher page (/teach) — not on the login screens or inside the app.
  */
 export default function BuiltBy() {
   return (

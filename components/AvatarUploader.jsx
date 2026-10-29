@@ -1,7 +1,7 @@
 "use client";
 import { useState, useRef } from "react";
 import { useFormState, useFormStatus } from "react-dom";
-import { uploadAvatar } from "@/app/actions/settings";
+import { uploadAvatar, removeAvatar } from "@/app/actions/settings";
 import { Avatar } from "@/components/ui";
 
 function SubmitBtn() {
@@ -13,8 +13,24 @@ function SubmitBtn() {
   );
 }
 
+/* Rides the same form through its own formAction, so it skips the file input's `required`. */
+function RemoveBtn({ action }) {
+  const { pending } = useFormStatus();
+  return (
+    <button type="submit" formAction={action} formNoValidate className="btn ghost sm" disabled={pending}>
+      Remove picture
+    </button>
+  );
+}
+
 export default function AvatarUploader({ user }) {
-  const [state, formAction] = useFormState(uploadAvatar, null);
+  const [uploaded, uploadAction] = useFormState(uploadAvatar, null);
+  const [removed, removeAction] = useFormState(removeAvatar, null);
+  /* Whichever action ran last decides the message; useFormState keeps both. */
+  const [last, setLast] = useState(null);
+  const state = last === "remove" ? removed : uploaded;
+  const formAction = (fd) => { setLast("upload"); return uploadAction(fd); };
+  const onRemove = (fd) => { setLast("remove"); return removeAction(fd); };
   const [preview, setPreview] = useState(null);
   const fileInputRef = useRef(null);
 
@@ -94,6 +110,8 @@ export default function AvatarUploader({ user }) {
                 </button>
               </>
             )}
+
+            {!preview && user.avatar_url && <RemoveBtn action={onRemove} />}
           </div>
         </div>
       </div>
